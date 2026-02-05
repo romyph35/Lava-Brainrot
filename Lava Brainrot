@@ -650,21 +650,34 @@ local function claimAllPlots()
 			local claimPart = slot:FindFirstChild("Claim")
 
 			if claimPart and claimPart:IsA("BasePart") and claimPart.Transparency ~= 1 then
-				-- Teleport to claim part
-				humanoidRootPart.CFrame = claimPart.CFrame + Vector3.new(0, 3, 0)
+				-- Save original claim part properties
+				local originalCFrame = claimPart.CFrame
+				local originalAnchored = claimPart.Anchored
+				
+				-- Make sure claim part stays in place
+				claimPart.Anchored = true
+				
+				-- Teleport player above the claim part (not directly on it)
+				local targetPosition = claimPart.Position + Vector3.new(0, 5, 0)
+				humanoidRootPart.CFrame = CFrame.new(targetPosition)
+				
 				print("💰 Teleported to claim slot " .. slotNum)
 				
-				wait(0.5) -- Wait for teleport to register
+				wait(0.3) -- Wait for teleport to register
 				
 				-- Touch the claim part
 				firetouchinterest(humanoidRootPart, claimPart, 0)
-				wait(0.01)
+				wait(0.05)
 				firetouchinterest(humanoidRootPart, claimPart, 1)
 
 				claimedCount = claimedCount + 1
 				
+				-- Restore claim part to original state
+				claimPart.CFrame = originalCFrame
+				claimPart.Anchored = originalAnchored
+				
 				-- Wait 20 seconds before next claim
-				wait(10)
+				wait(20)
 			end
 		end
 	end
@@ -838,6 +851,23 @@ local function onCharacterAdded(character)
 		setupAutoUpgrade()
 	end
 end
+
+-- Anti-AFK System
+local function setupAntiAFK()
+	local VirtualUser = game:GetService("VirtualUser")
+	
+	-- Prevent idle kick
+	LocalPlayer.Idled:Connect(function()
+		VirtualUser:CaptureController()
+		VirtualUser:ClickButton2(Vector2.new())
+		print("🔄 Anti-AFK: Prevented idle kick")
+	end)
+	
+	print("✅ Anti-AFK is now ACTIVE!")
+end
+
+-- Initialize Anti-AFK
+setupAntiAFK()
 
 -- Initialize
 local ScreenGui, JumpToggleButton, JumpToggleCircle, TeleportButton, CelestialToggleButton, CelestialToggleCircle, ClaimToggleButton, ClaimToggleCircle, UpgradeToggleButton, UpgradeToggleCircle, CloseButton, OpenButton, Container = createUI()
