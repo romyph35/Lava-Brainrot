@@ -314,7 +314,7 @@ local function createUI()
 	yOffset = yOffset + buttonHeight + spacing
 
 	local ClaimFeature, ClaimToggleButton, ClaimToggleCircle = createFeature(
-		"BUG PA", 
+		"Auto Claim Cash", 
 		Color3.fromRGB(50, 255, 100), 
 		yOffset, 
 		"toggle"
@@ -586,17 +586,32 @@ local function setupAutoCelestial()
 	celestialConnection = notificationEvent.OnClientEvent:Connect(function(message, data)
 		if autoCelestialEnabled and message == "A Celestial has spawned!" then
 			print("🔔 CELESTIAL NOTIFICATION RECEIVED!")
+			
+			-- Pause auto claim
+			if autoClaimEnabled then
+				claimPaused = true
+				print("⏸️ Auto Claim Cash PAUSED for celestial")
+			end
+			
 			wait(1)
 			grabCelestial()
+			
+			-- Resume auto claim after celestial grab
+			if autoClaimEnabled then
+				claimPaused = false
+				print("▶️ Auto Claim Cash RESUMED")
+			end
 		end
 	end)
 
 	print("✅ Auto Celestial listener is ACTIVE and waiting for notification!")
 end
 
--- Function to claim cash from player's plot using firetouchinterest
+-- Function to claim cash from player's plot by teleporting to claim parts
+local claimPaused = false
+
 local function claimAllPlots()
-	if not autoClaimEnabled then return end
+	if not autoClaimEnabled or claimPaused then return end
 
 	local character = LocalPlayer.Character
 	if not character then return end
@@ -625,17 +640,31 @@ local function claimAllPlots()
 	local claimedCount = 0
 
 	for slotNum = 1, 30 do
+		if not autoClaimEnabled or claimPaused then 
+			print("⏸️ Auto Claim paused")
+			break 
+		end
+
 		local slot = places:FindFirstChild(tostring(slotNum))
 		if slot then
 			local claimPart = slot:FindFirstChild("Claim")
 
 			if claimPart and claimPart:IsA("BasePart") and claimPart.Transparency ~= 1 then
+				-- Teleport to claim part
+				humanoidRootPart.CFrame = claimPart.CFrame + Vector3.new(0, 3, 0)
+				print("💰 Teleported to claim slot " .. slotNum)
+				
+				wait(0.5) -- Wait for teleport to register
+				
+				-- Touch the claim part
 				firetouchinterest(humanoidRootPart, claimPart, 0)
 				wait(0.01)
 				firetouchinterest(humanoidRootPart, claimPart, 1)
 
 				claimedCount = claimedCount + 1
-				wait(0.03)
+				
+				-- Wait 20 seconds before next claim
+				wait(10)
 			end
 		end
 	end
@@ -662,22 +691,8 @@ local function setupAutoClaimCash()
 	end
 
 	print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
-	print("📍 Path: Workspace > GameFolder > Plots > [Your Plot] > Places > [1-30] > Claim")
-	print("🔄 Using firetouchinterest to touch Claim parts...")
-
-	local events = ReplicatedStorage:FindFirstChild("Events")
-	if events then
-		local animateEvent = events:FindFirstChild("AnimateBrainrot")
-		if animateEvent then
-			local animConnection = animateEvent.OnClientEvent:Connect(function(brainrot)
-				if not autoClaimEnabled then return end
-				wait(0.1)
-				claimAllPlots()
-			end)
-			table.insert(claimConnections, animConnection)
-			print("✅ Listening to AnimateBrainrot event")
-		end
-	end
+	print("📍 Teleporting to each claim part with 20 second delay")
+	print("🔄 Will pause when celestial spawns...")
 
 	local loopRunning = true
 	table.insert(claimConnections, {
@@ -688,8 +703,11 @@ local function setupAutoClaimCash()
 
 	coroutine.wrap(function()
 		while loopRunning and autoClaimEnabled do
-			claimAllPlots()
-			wait(0.3)
+			if not claimPaused then
+				claimAllPlots()
+			else
+				wait(1) -- Check every second if pause is lifted
+			end
 		end
 	end)()
 
