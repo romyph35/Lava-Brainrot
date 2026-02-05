@@ -6,181 +6,362 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Configuration
 local UNLIMITED_JUMP_POWER = 50
 local ORIGINAL_JUMP_POWER = 50
-local TOTAL_PLOTS = 30
 
 -- State
 local unlimitedJumpEnabled = false
 local originalJumpPower = ORIGINAL_JUMP_POWER
 local autoCelestialEnabled = false
 local celestialConnection
-local autoClaimEnabled = false
-local claimConnections = {}
 local autoUpgradeEnabled = false
 local upgradeConnections = {}
 
--- Create UI
+-- Create UI with modern design
 local function createUI()
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "UnlimitedJumpUI"
+    ScreenGui.Name = "ModernUI"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
-    -- Open Button (shows when UI is closed)
-    local OpenButton = Instance.new("TextButton")
-    OpenButton.Name = "OpenButton"
-    OpenButton.Size = UDim2.new(0, 50, 0, 50)
-    OpenButton.Position = UDim2.new(0, 10, 0.5, -25)
-    OpenButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    OpenButton.BorderSizePixel = 0
-    OpenButton.Text = ">"
-    OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    OpenButton.TextSize = 24
-    OpenButton.Font = Enum.Font.GothamBold
-    OpenButton.Visible = false
-    OpenButton.Parent = ScreenGui
+    -- Main Container
+    local Container = Instance.new("Frame")
+    Container.Name = "Container"
+    Container.Size = UDim2.new(0, 480, 0, 360)
+    Container.Position = UDim2.new(0.5, -240, 0.5, -180)
+    Container.BackgroundColor3 = Color3.fromRGB(28, 30, 40)
+    Container.BorderSizePixel = 0
+    Container.Parent = ScreenGui
     
-    local OpenCorner = Instance.new("UICorner")
-    OpenCorner.CornerRadius = UDim.new(0, 8)
-    OpenCorner.Parent = OpenButton
+    local ContainerCorner = Instance.new("UICorner")
+    ContainerCorner.CornerRadius = UDim.new(0, 12)
+    ContainerCorner.Parent = Container
     
-    -- Main Frame (increased height for new buttons)
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 200, 0, 270)
-    MainFrame.Position = UDim2.new(0.5, -100, 0.1, 0)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Parent = ScreenGui
+    -- Sidebar
+    local Sidebar = Instance.new("Frame")
+    Sidebar.Name = "Sidebar"
+    Sidebar.Size = UDim2.new(0, 140, 1, 0)
+    Sidebar.Position = UDim2.new(0, 0, 0, 0)
+    Sidebar.BackgroundColor3 = Color3.fromRGB(23, 25, 33)
+    Sidebar.BorderSizePixel = 0
+    Sidebar.Parent = Container
     
-    -- Add rounded corners
-    local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 8)
-    UICorner.Parent = MainFrame
+    local SidebarCorner = Instance.new("UICorner")
+    SidebarCorner.CornerRadius = UDim.new(0, 12)
+    SidebarCorner.Parent = Sidebar
     
-    -- Title
-    local Title = Instance.new("TextLabel")
-    Title.Name = "Title"
-    Title.Size = UDim2.new(1, -40, 0, 30)
-    Title.Position = UDim2.new(0, 10, 0, 5)
-    Title.BackgroundTransparency = 1
-    Title.Text = "Unlimited Jump"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.TextSize = 16
-    Title.Font = Enum.Font.GothamBold
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.Parent = MainFrame
+    -- UI Lib Title
+    local UILibTitle = Instance.new("TextLabel")
+    UILibTitle.Name = "UILibTitle"
+    UILibTitle.Size = UDim2.new(1, -20, 0, 40)
+    UILibTitle.Position = UDim2.new(0, 10, 0, 15)
+    UILibTitle.BackgroundTransparency = 1
+    UILibTitle.Text = "UI Lib"
+    UILibTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    UILibTitle.TextSize = 22
+    UILibTitle.Font = Enum.Font.GothamBold
+    UILibTitle.TextXAlignment = Enum.TextXAlignment.Left
+    UILibTitle.Parent = Sidebar
     
-    -- Close Button (X)
-    local CloseButton = Instance.new("TextButton")
-    CloseButton.Name = "CloseButton"
-    CloseButton.Size = UDim2.new(0, 30, 0, 30)
-    CloseButton.Position = UDim2.new(1, -35, 0, 5)
-    CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    CloseButton.BorderSizePixel = 0
-    CloseButton.Text = "X"
-    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CloseButton.TextSize = 18
-    CloseButton.Font = Enum.Font.GothamBold
-    CloseButton.Parent = MainFrame
+    -- Home Button
+    local HomeButton = Instance.new("TextButton")
+    HomeButton.Name = "HomeButton"
+    HomeButton.Size = UDim2.new(1, -20, 0, 40)
+    HomeButton.Position = UDim2.new(0, 10, 0, 70)
+    HomeButton.BackgroundColor3 = Color3.fromRGB(45, 48, 62)
+    HomeButton.BorderSizePixel = 0
+    HomeButton.Text = "Home"
+    HomeButton.TextColor3 = Color3.fromRGB(200, 200, 210)
+    HomeButton.TextSize = 15
+    HomeButton.Font = Enum.Font.GothamMedium
+    HomeButton.Parent = Sidebar
     
-    local CloseCorner = Instance.new("UICorner")
-    CloseCorner.CornerRadius = UDim.new(0, 6)
-    CloseCorner.Parent = CloseButton
+    local HomeCorner = Instance.new("UICorner")
+    HomeCorner.CornerRadius = UDim.new(0, 8)
+    HomeCorner.Parent = HomeButton
     
-    -- Toggle Button
-    local ToggleButton = Instance.new("TextButton")
-    ToggleButton.Name = "ToggleButton"
-    ToggleButton.Size = UDim2.new(0, 180, 0, 35)
-    ToggleButton.Position = UDim2.new(0, 10, 0, 40)
-    ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    ToggleButton.BorderSizePixel = 0
-    ToggleButton.Text = "Jump: OFF"
-    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleButton.TextSize = 16
-    ToggleButton.Font = Enum.Font.GothamBold
-    ToggleButton.Parent = MainFrame
+    -- Main Content Area
+    local ContentArea = Instance.new("Frame")
+    ContentArea.Name = "ContentArea"
+    ContentArea.Size = UDim2.new(1, -160, 1, -30)
+    ContentArea.Position = UDim2.new(0, 150, 0, 15)
+    ContentArea.BackgroundTransparency = 1
+    ContentArea.Parent = Container
     
-    local ToggleCorner = Instance.new("UICorner")
-    ToggleCorner.CornerRadius = UDim.new(0, 6)
-    ToggleCorner.Parent = ToggleButton
+    -- Title Section
+    local TitleSection = Instance.new("Frame")
+    TitleSection.Name = "TitleSection"
+    TitleSection.Size = UDim2.new(1, 0, 0, 50)
+    TitleSection.Position = UDim2.new(0, 0, 0, 0)
+    TitleSection.BackgroundColor3 = Color3.fromRGB(38, 41, 54)
+    TitleSection.BorderSizePixel = 0
+    TitleSection.Parent = ContentArea
     
-    -- Teleport to Spawn Button
-    local TeleportButton = Instance.new("TextButton")
+    local TitleCorner = Instance.new("UICorner")
+    TitleCorner.CornerRadius = UDim.new(0, 10)
+    TitleCorner.Parent = TitleSection
+    
+    local TitleIcon = Instance.new("ImageLabel")
+    TitleIcon.Name = "TitleIcon"
+    TitleIcon.Size = UDim2.new(0, 24, 0, 24)
+    TitleIcon.Position = UDim2.new(0, 15, 0.5, -12)
+    TitleIcon.BackgroundTransparency = 1
+    TitleIcon.Image = "rbxassetid://7733954760"
+    TitleIcon.ImageColor3 = Color3.fromRGB(150, 100, 230)
+    TitleIcon.Parent = TitleSection
+    
+    local TitleText = Instance.new("TextLabel")
+    TitleText.Name = "TitleText"
+    TitleText.Size = UDim2.new(1, -50, 1, 0)
+    TitleText.Position = UDim2.new(0, 45, 0, 0)
+    TitleText.BackgroundTransparency = 1
+    TitleText.Text = "Game Features"
+    TitleText.TextColor3 = Color3.fromRGB(220, 220, 230)
+    TitleText.TextSize = 16
+    TitleText.Font = Enum.Font.GothamBold
+    TitleText.TextXAlignment = Enum.TextXAlignment.Left
+    TitleText.Parent = TitleSection
+    
+    -- Unlimited Jump Toggle
+    local JumpToggle = Instance.new("Frame")
+    JumpToggle.Name = "JumpToggle"
+    JumpToggle.Size = UDim2.new(1, 0, 0, 50)
+    JumpToggle.Position = UDim2.new(0, 0, 0, 65)
+    JumpToggle.BackgroundColor3 = Color3.fromRGB(38, 41, 54)
+    JumpToggle.BorderSizePixel = 0
+    JumpToggle.Parent = ContentArea
+    
+    local JumpCorner = Instance.new("UICorner")
+    JumpCorner.CornerRadius = UDim.new(0, 10)
+    JumpCorner.Parent = JumpToggle
+    
+    local JumpIcon = Instance.new("ImageLabel")
+    JumpIcon.Name = "JumpIcon"
+    JumpIcon.Size = UDim2.new(0, 24, 0, 24)
+    JumpIcon.Position = UDim2.new(0, 15, 0.5, -12)
+    JumpIcon.BackgroundTransparency = 1
+    JumpIcon.Image = "rbxassetid://7733992358"
+    JumpIcon.ImageColor3 = Color3.fromRGB(100, 200, 255)
+    JumpIcon.Parent = JumpToggle
+    
+    local JumpLabel = Instance.new("TextLabel")
+    JumpLabel.Name = "JumpLabel"
+    JumpLabel.Size = UDim2.new(1, -120, 1, 0)
+    JumpLabel.Position = UDim2.new(0, 45, 0, 0)
+    JumpLabel.BackgroundTransparency = 1
+    JumpLabel.Text = "Unlimited Jump"
+    JumpLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+    JumpLabel.TextSize = 15
+    JumpLabel.Font = Enum.Font.GothamMedium
+    JumpLabel.TextXAlignment = Enum.TextXAlignment.Left
+    JumpLabel.Parent = JumpToggle
+    
+    local JumpToggleButton = Instance.new("TextButton")
+    JumpToggleButton.Name = "ToggleButton"
+    JumpToggleButton.Size = UDim2.new(0, 45, 0, 24)
+    JumpToggleButton.Position = UDim2.new(1, -60, 0.5, -12)
+    JumpToggleButton.BackgroundColor3 = Color3.fromRGB(60, 63, 78)
+    JumpToggleButton.BorderSizePixel = 0
+    JumpToggleButton.Text = ""
+    JumpToggleButton.Parent = JumpToggle
+    
+    local JumpToggleCorner = Instance.new("UICorner")
+    JumpToggleCorner.CornerRadius = UDim.new(1, 0)
+    JumpToggleCorner.Parent = JumpToggleButton
+    
+    local JumpToggleCircle = Instance.new("Frame")
+    JumpToggleCircle.Name = "Circle"
+    JumpToggleCircle.Size = UDim2.new(0, 18, 0, 18)
+    JumpToggleCircle.Position = UDim2.new(0, 3, 0.5, -9)
+    JumpToggleCircle.BackgroundColor3 = Color3.fromRGB(140, 140, 150)
+    JumpToggleCircle.BorderSizePixel = 0
+    JumpToggleCircle.Parent = JumpToggleButton
+    
+    local CircleCorner = Instance.new("UICorner")
+    CircleCorner.CornerRadius = UDim.new(1, 0)
+    CircleCorner.Parent = JumpToggleCircle
+    
+    -- Teleport Button
+    local TeleportButton = Instance.new("Frame")
     TeleportButton.Name = "TeleportButton"
-    TeleportButton.Size = UDim2.new(0, 180, 0, 35)
-    TeleportButton.Position = UDim2.new(0, 10, 0, 85)
-    TeleportButton.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+    TeleportButton.Size = UDim2.new(1, 0, 0, 50)
+    TeleportButton.Position = UDim2.new(0, 0, 0, 130)
+    TeleportButton.BackgroundColor3 = Color3.fromRGB(38, 41, 54)
     TeleportButton.BorderSizePixel = 0
-    TeleportButton.Text = "Teleport to Spawn"
-    TeleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TeleportButton.TextSize = 14
-    TeleportButton.Font = Enum.Font.GothamBold
-    TeleportButton.Parent = MainFrame
+    TeleportButton.Parent = ContentArea
     
     local TeleportCorner = Instance.new("UICorner")
-    TeleportCorner.CornerRadius = UDim.new(0, 6)
+    TeleportCorner.CornerRadius = UDim.new(0, 10)
     TeleportCorner.Parent = TeleportButton
     
-    -- Auto Celestial Button
-    local CelestialButton = Instance.new("TextButton")
-    CelestialButton.Name = "CelestialButton"
-    CelestialButton.Size = UDim2.new(0, 180, 0, 35)
-    CelestialButton.Position = UDim2.new(0, 10, 0, 130)
-    CelestialButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    CelestialButton.BorderSizePixel = 0
-    CelestialButton.Text = "Auto Celestial: OFF"
-    CelestialButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CelestialButton.TextSize = 13
-    CelestialButton.Font = Enum.Font.GothamBold
-    CelestialButton.Parent = MainFrame
+    local TeleportIcon = Instance.new("TextLabel")
+    TeleportIcon.Name = "Icon"
+    TeleportIcon.Size = UDim2.new(0, 24, 0, 24)
+    TeleportIcon.Position = UDim2.new(0, 15, 0.5, -12)
+    TeleportIcon.BackgroundTransparency = 1
+    TeleportIcon.Text = "🏠"
+    TeleportIcon.TextColor3 = Color3.fromRGB(100, 200, 255)
+    TeleportIcon.TextSize = 18
+    TeleportIcon.Font = Enum.Font.GothamBold
+    TeleportIcon.Parent = TeleportButton
+    
+    local TeleportLabel = Instance.new("TextLabel")
+    TeleportLabel.Name = "Label"
+    TeleportLabel.Size = UDim2.new(1, -120, 1, 0)
+    TeleportLabel.Position = UDim2.new(0, 45, 0, 0)
+    TeleportLabel.BackgroundTransparency = 1
+    TeleportLabel.Text = "Teleport to Spawn"
+    TeleportLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+    TeleportLabel.TextSize = 15
+    TeleportLabel.Font = Enum.Font.GothamMedium
+    TeleportLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TeleportLabel.Parent = TeleportButton
+    
+    local TeleportClickButton = Instance.new("TextButton")
+    TeleportClickButton.Name = "ClickButton"
+    TeleportClickButton.Size = UDim2.new(0, 35, 0, 35)
+    TeleportClickButton.Position = UDim2.new(1, -50, 0.5, -17.5)
+    TeleportClickButton.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+    TeleportClickButton.BorderSizePixel = 0
+    TeleportClickButton.Text = "F"
+    TeleportClickButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TeleportClickButton.TextSize = 16
+    TeleportClickButton.Font = Enum.Font.GothamBold
+    TeleportClickButton.Parent = TeleportButton
+    
+    local TeleportClickCorner = Instance.new("UICorner")
+    TeleportClickCorner.CornerRadius = UDim.new(0, 8)
+    TeleportClickCorner.Parent = TeleportClickButton
+    
+    -- Auto Celestial Toggle
+    local CelestialToggle = Instance.new("Frame")
+    CelestialToggle.Name = "CelestialToggle"
+    CelestialToggle.Size = UDim2.new(1, 0, 0, 50)
+    CelestialToggle.Position = UDim2.new(0, 0, 0, 195)
+    CelestialToggle.BackgroundColor3 = Color3.fromRGB(38, 41, 54)
+    CelestialToggle.BorderSizePixel = 0
+    CelestialToggle.Parent = ContentArea
     
     local CelestialCorner = Instance.new("UICorner")
-    CelestialCorner.CornerRadius = UDim.new(0, 6)
-    CelestialCorner.Parent = CelestialButton
+    CelestialCorner.CornerRadius = UDim.new(0, 10)
+    CelestialCorner.Parent = CelestialToggle
     
-    -- Auto Claim Cash Button
-    local ClaimButton = Instance.new("TextButton")
-    ClaimButton.Name = "ClaimButton"
-    ClaimButton.Size = UDim2.new(0, 180, 0, 35)
-    ClaimButton.Position = UDim2.new(0, 10, 0, 175)
-    ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    ClaimButton.BorderSizePixel = 0
-    ClaimButton.Text = "Auto Claim: OFF"
-    ClaimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ClaimButton.TextSize = 13
-    ClaimButton.Font = Enum.Font.GothamBold
-    ClaimButton.Parent = MainFrame
+    local CelestialIcon = Instance.new("TextLabel")
+    CelestialIcon.Name = "Icon"
+    CelestialIcon.Size = UDim2.new(0, 24, 0, 24)
+    CelestialIcon.Position = UDim2.new(0, 15, 0.5, -12)
+    CelestialIcon.BackgroundTransparency = 1
+    CelestialIcon.Text = "🌟"
+    CelestialIcon.TextColor3 = Color3.fromRGB(255, 215, 0)
+    CelestialIcon.TextSize = 18
+    CelestialIcon.Font = Enum.Font.GothamBold
+    CelestialIcon.Parent = CelestialToggle
     
-    local ClaimCorner = Instance.new("UICorner")
-    ClaimCorner.CornerRadius = UDim.new(0, 6)
-    ClaimCorner.Parent = ClaimButton
+    local CelestialLabel = Instance.new("TextLabel")
+    CelestialLabel.Name = "Label"
+    CelestialLabel.Size = UDim2.new(1, -120, 1, 0)
+    CelestialLabel.Position = UDim2.new(0, 45, 0, 0)
+    CelestialLabel.BackgroundTransparency = 1
+    CelestialLabel.Text = "Auto Celestial"
+    CelestialLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+    CelestialLabel.TextSize = 15
+    CelestialLabel.Font = Enum.Font.GothamMedium
+    CelestialLabel.TextXAlignment = Enum.TextXAlignment.Left
+    CelestialLabel.Parent = CelestialToggle
     
-    -- Auto Upgrade Button
-    local UpgradeButton = Instance.new("TextButton")
-    UpgradeButton.Name = "UpgradeButton"
-    UpgradeButton.Size = UDim2.new(0, 180, 0, 35)
-    UpgradeButton.Position = UDim2.new(0, 10, 0, 220)
-    UpgradeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    UpgradeButton.BorderSizePixel = 0
-    UpgradeButton.Text = "Auto Upgrade: OFF"
-    UpgradeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    UpgradeButton.TextSize = 13
-    UpgradeButton.Font = Enum.Font.GothamBold
-    UpgradeButton.Parent = MainFrame
+    local CelestialToggleButton = Instance.new("TextButton")
+    CelestialToggleButton.Name = "ToggleButton"
+    CelestialToggleButton.Size = UDim2.new(0, 45, 0, 24)
+    CelestialToggleButton.Position = UDim2.new(1, -60, 0.5, -12)
+    CelestialToggleButton.BackgroundColor3 = Color3.fromRGB(60, 63, 78)
+    CelestialToggleButton.BorderSizePixel = 0
+    CelestialToggleButton.Text = ""
+    CelestialToggleButton.Parent = CelestialToggle
+    
+    local CelestialToggleCorner = Instance.new("UICorner")
+    CelestialToggleCorner.CornerRadius = UDim.new(1, 0)
+    CelestialToggleCorner.Parent = CelestialToggleButton
+    
+    local CelestialToggleCircle = Instance.new("Frame")
+    CelestialToggleCircle.Name = "Circle"
+    CelestialToggleCircle.Size = UDim2.new(0, 18, 0, 18)
+    CelestialToggleCircle.Position = UDim2.new(0, 3, 0.5, -9)
+    CelestialToggleCircle.BackgroundColor3 = Color3.fromRGB(140, 140, 150)
+    CelestialToggleCircle.BorderSizePixel = 0
+    CelestialToggleCircle.Parent = CelestialToggleButton
+    
+    local CelestialCircleCorner = Instance.new("UICorner")
+    CelestialCircleCorner.CornerRadius = UDim.new(1, 0)
+    CelestialCircleCorner.Parent = CelestialToggleCircle
+    
+    -- Auto Upgrade Toggle
+    local UpgradeToggle = Instance.new("Frame")
+    UpgradeToggle.Name = "UpgradeToggle"
+    UpgradeToggle.Size = UDim2.new(1, 0, 0, 50)
+    UpgradeToggle.Position = UDim2.new(0, 0, 0, 260)
+    UpgradeToggle.BackgroundColor3 = Color3.fromRGB(38, 41, 54)
+    UpgradeToggle.BorderSizePixel = 0
+    UpgradeToggle.Parent = ContentArea
     
     local UpgradeCorner = Instance.new("UICorner")
-    UpgradeCorner.CornerRadius = UDim.new(0, 6)
-    UpgradeCorner.Parent = UpgradeButton
+    UpgradeCorner.CornerRadius = UDim.new(0, 10)
+    UpgradeCorner.Parent = UpgradeToggle
+    
+    local UpgradeIcon = Instance.new("TextLabel")
+    UpgradeIcon.Name = "Icon"
+    UpgradeIcon.Size = UDim2.new(0, 24, 0, 24)
+    UpgradeIcon.Position = UDim2.new(0, 15, 0.5, -12)
+    UpgradeIcon.BackgroundTransparency = 1
+    UpgradeIcon.Text = "⬆️"
+    UpgradeIcon.TextColor3 = Color3.fromRGB(138, 43, 226)
+    UpgradeIcon.TextSize = 18
+    UpgradeIcon.Font = Enum.Font.GothamBold
+    UpgradeIcon.Parent = UpgradeToggle
+    
+    local UpgradeLabel = Instance.new("TextLabel")
+    UpgradeLabel.Name = "Label"
+    UpgradeLabel.Size = UDim2.new(1, -120, 1, 0)
+    UpgradeLabel.Position = UDim2.new(0, 45, 0, 0)
+    UpgradeLabel.BackgroundTransparency = 1
+    UpgradeLabel.Text = "Auto Upgrade"
+    UpgradeLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+    UpgradeLabel.TextSize = 15
+    UpgradeLabel.Font = Enum.Font.GothamMedium
+    UpgradeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    UpgradeLabel.Parent = UpgradeToggle
+    
+    local UpgradeToggleButton = Instance.new("TextButton")
+    UpgradeToggleButton.Name = "ToggleButton"
+    UpgradeToggleButton.Size = UDim2.new(0, 45, 0, 24)
+    UpgradeToggleButton.Position = UDim2.new(1, -60, 0.5, -12)
+    UpgradeToggleButton.BackgroundColor3 = Color3.fromRGB(60, 63, 78)
+    UpgradeToggleButton.BorderSizePixel = 0
+    UpgradeToggleButton.Text = ""
+    UpgradeToggleButton.Parent = UpgradeToggle
+    
+    local UpgradeToggleCorner = Instance.new("UICorner")
+    UpgradeToggleCorner.CornerRadius = UDim.new(1, 0)
+    UpgradeToggleCorner.Parent = UpgradeToggleButton
+    
+    local UpgradeToggleCircle = Instance.new("Frame")
+    UpgradeToggleCircle.Name = "Circle"
+    UpgradeToggleCircle.Size = UDim2.new(0, 18, 0, 18)
+    UpgradeToggleCircle.Position = UDim2.new(0, 3, 0.5, -9)
+    UpgradeToggleCircle.BackgroundColor3 = Color3.fromRGB(140, 140, 150)
+    UpgradeToggleCircle.BorderSizePixel = 0
+    UpgradeToggleCircle.Parent = UpgradeToggleButton
+    
+    local UpgradeCircleCorner = Instance.new("UICorner")
+    UpgradeCircleCorner.CornerRadius = UDim.new(1, 0)
+    UpgradeCircleCorner.Parent = UpgradeToggleCircle
     
     -- Make draggable
     local dragging = false
     local dragInput, mousePos, framePos
     
-    MainFrame.InputBegan:Connect(function(input)
+    Container.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             mousePos = input.Position
-            framePos = MainFrame.Position
+            framePos = Container.Position
             
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
@@ -190,7 +371,7 @@ local function createUI()
         end
     end)
     
-    MainFrame.InputChanged:Connect(function(input)
+    Container.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement then
             dragInput = input
         end
@@ -199,7 +380,7 @@ local function createUI()
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - mousePos
-            MainFrame.Position = UDim2.new(
+            Container.Position = UDim2.new(
                 framePos.X.Scale,
                 framePos.X.Offset + delta.X,
                 framePos.Y.Scale,
@@ -210,7 +391,42 @@ local function createUI()
     
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    return ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, UpgradeButton, OpenButton, MainFrame
+    return ScreenGui, JumpToggleButton, JumpToggleCircle, TeleportClickButton, CelestialToggleButton, CelestialToggleCircle, UpgradeToggleButton, UpgradeToggleCircle
+end
+
+-- Function to animate toggle
+local function animateToggle(toggleButton, circle, enabled, activeColor)
+    local TweenService = game:GetService("TweenService")
+    
+    if enabled then
+        -- Move circle to the right
+        TweenService:Create(circle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(1, -21, 0.5, -9)
+        }):Play()
+        
+        -- Change colors
+        TweenService:Create(toggleButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = activeColor
+        }):Play()
+        
+        TweenService:Create(circle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        }):Play()
+    else
+        -- Move circle to the left
+        TweenService:Create(circle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0, 3, 0.5, -9)
+        }):Play()
+        
+        -- Reset colors
+        TweenService:Create(toggleButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = Color3.fromRGB(60, 63, 78)
+        }):Play()
+        
+        TweenService:Create(circle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = Color3.fromRGB(140, 140, 150)
+        }):Play()
+    end
 end
 
 -- Function to enable/disable unlimited jump
@@ -224,8 +440,6 @@ local function setUnlimitedJump(enabled)
             if enabled then
                 originalJumpPower = humanoid.JumpPower
                 humanoid.JumpPower = UNLIMITED_JUMP_POWER
-                
-                -- Allow infinite jumps
                 humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
             else
                 humanoid.JumpPower = originalJumpPower
@@ -268,11 +482,9 @@ local function teleportToSpawn()
         return
     end
     
-    -- Find SpawnLocation in Workspace
     local spawnLocation = game.Workspace:FindFirstChild("SpawnLocation")
     
     if spawnLocation then
-        -- Teleport to spawn location
         humanoidRootPart.CFrame = spawnLocation.CFrame + Vector3.new(0, 3, 0)
         print("✅ Teleported to spawn!")
     else
@@ -282,7 +494,6 @@ end
 
 -- Function to find celestial brainrot ProximityPrompt
 local function findCelestialPrompt()
-    -- Navigate to Workspace > GameFolder > Brainrots > Celestial
     local gameFolder = game.Workspace:FindFirstChild("GameFolder")
     if not gameFolder then
         warn("❌ GameFolder not found!")
@@ -301,10 +512,8 @@ local function findCelestialPrompt()
         return nil, nil
     end
     
-    -- Search for ProximityPrompt in the celestial folder
     for _, descendant in ipairs(celestialFolder:GetDescendants()) do
         if descendant:IsA("ProximityPrompt") then
-            -- Found the ProximityPrompt, now get the part it's attached to
             local parentPart = descendant.Parent
             print("✅ Found ProximityPrompt on: " .. parentPart.Name)
             return descendant, parentPart
@@ -331,7 +540,6 @@ local function grabCelestial()
         return 
     end
     
-    -- Step 1: Find the ProximityPrompt
     print("🔍 Step 1: Searching for celestial ProximityPrompt...")
     local proximityPrompt, promptPart = findCelestialPrompt()
     
@@ -342,21 +550,17 @@ local function grabCelestial()
     
     print("✅ ProximityPrompt found successfully!")
     
-    -- Step 2: Teleport to the brainrot
     print("🚀 Step 2: Teleporting to celestial brainrot...")
     humanoidRootPart.CFrame = promptPart.CFrame + Vector3.new(0, 3, 0)
     print("✅ Teleported to celestial!")
     
-    -- Wait for teleport to complete
     wait(0.5)
     
-    -- Step 3: Trigger the ProximityPrompt to grab it
     print("👋 Step 3: Grabbing celestial via ProximityPrompt...")
     if proximityPrompt.Enabled then
         fireproximityprompt(proximityPrompt)
         print("✅ ProximityPrompt triggered!")
         
-        -- Also fire the Tutorial event as backup
         wait(0.2)
         local events = ReplicatedStorage:FindFirstChild("Events")
         if events then
@@ -370,7 +574,6 @@ local function grabCelestial()
         warn("⚠️ ProximityPrompt is disabled!")
     end
     
-    -- Step 4: Wait then teleport back to spawn
     print("⏳ Step 4: Waiting before returning to spawn...")
     wait(1.5)
     
@@ -392,7 +595,6 @@ local function setupAutoCelestial()
         return
     end
     
-    -- Listen for celestial spawn notification
     local events = ReplicatedStorage:FindFirstChild("Events")
     if not events then
         warn("❌ Events folder not found in ReplicatedStorage!")
@@ -406,132 +608,14 @@ local function setupAutoCelestial()
     end
     
     celestialConnection = notificationEvent.OnClientEvent:Connect(function(message, data)
-        -- Check if it's the celestial spawn notification and auto-grab is enabled
         if autoCelestialEnabled and message == "A Celestial has spawned!" then
             print("🔔 CELESTIAL NOTIFICATION RECEIVED!")
-            
-            -- Wait a moment for the celestial to fully spawn
             wait(1)
-            
-            -- Execute the automatic grab sequence
             grabCelestial()
         end
     end)
     
     print("✅ Auto Celestial listener is ACTIVE and waiting for notification!")
-end
-
--- Function to claim cash from all plots
-local function claimAllPlots()
-    if not autoClaimEnabled then return end
-    
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
-    
-    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
-    if not gameFolder then return end
-    
-    local plots = gameFolder:FindFirstChild("Plots")
-    if not plots then return end
-    
-    local claimedCount = 0
-    
-    -- Loop through all plots
-    for plotNum = 1, TOTAL_PLOTS do
-        local plot = plots:FindFirstChild(tostring(plotNum))
-        if plot then
-            local brainrots = plot:FindFirstChild("Brainrots")
-            local places = plot:FindFirstChild("Places")
-            
-            if brainrots and places then
-                -- Check each brainrot
-                for _, brainrot in pairs(brainrots:GetChildren()) do
-                    local place = places:FindFirstChild(brainrot.Name)
-                    
-                    if place then
-                        local claimAtt = place:FindFirstChild("ClaimAtt")
-                        if claimAtt then
-                            local claimPart = claimAtt:FindFirstChild("Claim")
-                            
-                            -- Check if claim part is visible (has cash)
-                            if claimPart and claimPart.Transparency ~= 1 then
-                                -- Touch the claim part
-                                firetouchinterest(humanoidRootPart, claimPart, 0)
-                                wait(0.01)
-                                firetouchinterest(humanoidRootPart, claimPart, 1)
-                                
-                                claimedCount = claimedCount + 1
-                                wait(0.05)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    if claimedCount > 0 then
-        print("💰 Claimed cash from " .. claimedCount .. " brainrots!")
-    end
-    
-    return claimedCount
-end
-
--- Function to setup auto claim cash with continuous loop
-local function setupAutoClaimCash()
-    -- Disconnect all existing connections
-    for _, connection in pairs(claimConnections) do
-        if connection and connection.Disconnect then
-            connection:Disconnect()
-        end
-    end
-    claimConnections = {}
-    
-    if not autoClaimEnabled then
-        print("⏹️ Auto Claim Cash disabled")
-        return
-    end
-    
-    print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
-    print("📍 Monitoring: Workspace > GameFolder > Plots > [1-30]")
-    print("🔄 Continuously checking all plots for claimable cash...")
-    
-    -- Method 1: Listen to AnimateBrainrot event
-    local events = ReplicatedStorage:FindFirstChild("Events")
-    if events then
-        local animateEvent = events:FindFirstChild("AnimateBrainrot")
-        if animateEvent then
-            local animConnection = animateEvent.OnClientEvent:Connect(function(brainrot)
-                if not autoClaimEnabled then return end
-                
-                -- When a brainrot animates, try to claim it
-                wait(0.1)
-                claimAllPlots()
-            end)
-            table.insert(claimConnections, animConnection)
-            print("✅ Listening to AnimateBrainrot event")
-        end
-    end
-    
-    -- Method 2: Continuous loop as backup
-    local loopRunning = true
-    table.insert(claimConnections, {
-        Disconnect = function()
-            loopRunning = false
-        end
-    })
-    
-    coroutine.wrap(function()
-        while loopRunning and autoClaimEnabled do
-            claimAllPlots()
-            wait(0.5) -- Check every 0.5 seconds
-        end
-    end)()
-    
-    print("✅ Auto Claim Cash is now ACTIVE!")
 end
 
 -- Function to upgrade all brainrots in player's plot
@@ -564,12 +648,10 @@ local function upgradeAllBrainrots()
     
     local upgradeCount = 0
     
-    -- Upgrade each place/brainrot
     for _, place in pairs(places:GetChildren()) do
         if place:IsA("Model") then
             local placeNumber = tonumber(place.Name)
             if placeNumber then
-                -- Try to upgrade this brainrot
                 local success, result = pcall(function()
                     return upgradeEvent:InvokeServer(placeNumber)
                 end)
@@ -577,7 +659,7 @@ local function upgradeAllBrainrots()
                 if success and result then
                     upgradeCount = upgradeCount + 1
                     print("⬆️ Upgraded brainrot at place " .. placeNumber)
-                    wait(0.1) -- Small delay between upgrades
+                    wait(0.1)
                 end
             end
         end
@@ -592,7 +674,6 @@ end
 
 -- Function to setup auto upgrade with continuous loop
 local function setupAutoUpgrade()
-    -- Disconnect all existing connections
     for _, connection in pairs(upgradeConnections) do
         if connection and connection.Disconnect then
             connection:Disconnect()
@@ -609,15 +690,12 @@ local function setupAutoUpgrade()
     print("📍 Upgrading all brainrots in your plot")
     print("🔄 Continuously checking for upgrade opportunities...")
     
-    -- Method 1: Listen to AnimateBrainrot event (indicates production/potential upgrade time)
     local events = ReplicatedStorage:FindFirstChild("Events")
     if events then
         local animateEvent = events:FindFirstChild("AnimateBrainrot")
         if animateEvent then
             local animConnection = animateEvent.OnClientEvent:Connect(function(brainrot)
                 if not autoUpgradeEnabled then return end
-                
-                -- When a brainrot animates, try to upgrade all
                 wait(0.2)
                 upgradeAllBrainrots()
             end)
@@ -626,7 +704,6 @@ local function setupAutoUpgrade()
         end
     end
     
-    -- Method 2: Continuous loop as backup
     local loopRunning = true
     table.insert(upgradeConnections, {
         Disconnect = function()
@@ -637,7 +714,7 @@ local function setupAutoUpgrade()
     coroutine.wrap(function()
         while loopRunning and autoUpgradeEnabled do
             upgradeAllBrainrots()
-            wait(2) -- Check every 2 seconds (upgrades are less frequent than claims)
+            wait(2)
         end
     end)()
     
@@ -647,113 +724,66 @@ end
 -- Character respawn handler
 local function onCharacterAdded(character)
     local humanoid = character:WaitForChild("Humanoid")
-    
-    -- Wait a moment for the character to fully load
     wait(0.5)
     
-    -- Store original jump power
     if not unlimitedJumpEnabled then
         originalJumpPower = humanoid.JumpPower
     else
-        -- Reapply unlimited jump if it was enabled
         setUnlimitedJump(true)
     end
     
     setupUnlimitedJumping()
     
-    -- Restart auto claim if it was enabled
-    if autoClaimEnabled then
-        setupAutoClaimCash()
-    end
-    
-    -- Restart auto upgrade if it was enabled
     if autoUpgradeEnabled then
         setupAutoUpgrade()
     end
 end
 
 -- Initialize
-local ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, UpgradeButton, OpenButton, MainFrame = createUI()
+local ScreenGui, JumpToggleButton, JumpToggleCircle, TeleportClickButton, CelestialToggleButton, CelestialToggleCircle, UpgradeToggleButton, UpgradeToggleCircle = createUI()
 
--- Toggle button click handler
-ToggleButton.MouseButton1Click:Connect(function()
+-- Jump toggle handler
+JumpToggleButton.MouseButton1Click:Connect(function()
     unlimitedJumpEnabled = not unlimitedJumpEnabled
+    animateToggle(JumpToggleButton, JumpToggleCircle, unlimitedJumpEnabled, Color3.fromRGB(100, 200, 255))
+    setUnlimitedJump(unlimitedJumpEnabled)
     
     if unlimitedJumpEnabled then
-        ToggleButton.Text = "Jump: ON"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        print("✅ Unlimited Jump: ON")
     else
-        ToggleButton.Text = "Jump: OFF"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        print("⏹️ Unlimited Jump: OFF")
     end
-    
-    setUnlimitedJump(unlimitedJumpEnabled)
 end)
 
--- Teleport button click handler
-TeleportButton.MouseButton1Click:Connect(function()
+-- Teleport button handler
+TeleportClickButton.MouseButton1Click:Connect(function()
     teleportToSpawn()
 end)
 
--- Auto Celestial button click handler
-CelestialButton.MouseButton1Click:Connect(function()
+-- Celestial toggle handler
+CelestialToggleButton.MouseButton1Click:Connect(function()
     autoCelestialEnabled = not autoCelestialEnabled
+    animateToggle(CelestialToggleButton, CelestialToggleCircle, autoCelestialEnabled, Color3.fromRGB(255, 215, 0))
+    setupAutoCelestial()
     
     if autoCelestialEnabled then
-        CelestialButton.Text = "Auto Celestial: ON"
-        CelestialButton.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
-        setupAutoCelestial()
+        print("✅ Auto Celestial: ON")
     else
-        CelestialButton.Text = "Auto Celestial: OFF"
-        CelestialButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        if celestialConnection then
-            celestialConnection:Disconnect()
-            celestialConnection = nil
-        end
-        print("⏹️ Auto Celestial has been disabled")
+        print("⏹️ Auto Celestial: OFF")
     end
 end)
 
--- Auto Claim Cash button click handler
-ClaimButton.MouseButton1Click:Connect(function()
-    autoClaimEnabled = not autoClaimEnabled
-    
-    if autoClaimEnabled then
-        ClaimButton.Text = "Auto Claim: ON"
-        ClaimButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        setupAutoClaimCash()
-    else
-        ClaimButton.Text = "Auto Claim: OFF"
-        ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        setupAutoClaimCash() -- This will disconnect all connections
-    end
-end)
-
--- Auto Upgrade button click handler
-UpgradeButton.MouseButton1Click:Connect(function()
+-- Upgrade toggle handler
+UpgradeToggleButton.MouseButton1Click:Connect(function()
     autoUpgradeEnabled = not autoUpgradeEnabled
+    animateToggle(UpgradeToggleButton, UpgradeToggleCircle, autoUpgradeEnabled, Color3.fromRGB(138, 43, 226))
+    setupAutoUpgrade()
     
     if autoUpgradeEnabled then
-        UpgradeButton.Text = "Auto Upgrade: ON"
-        UpgradeButton.BackgroundColor3 = Color3.fromRGB(138, 43, 226) -- Purple color
-        setupAutoUpgrade()
+        print("✅ Auto Upgrade: ON")
     else
-        UpgradeButton.Text = "Auto Upgrade: OFF"
-        UpgradeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        setupAutoUpgrade() -- This will disconnect all connections
+        print("⏹️ Auto Upgrade: OFF")
     end
-end)
-
--- Close button click handler (hides UI, shows open button)
-CloseButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    OpenButton.Visible = true
-end)
-
--- Open button click handler
-OpenButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = true
-    OpenButton.Visible = false
 end)
 
 -- Setup character handlers
