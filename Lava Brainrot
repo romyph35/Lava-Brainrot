@@ -260,7 +260,7 @@ local function createUI()
     TeleportClickButton.Position = UDim2.new(1, -50, 0.5, -17.5)
     TeleportClickButton.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
     TeleportClickButton.BorderSizePixel = 0
-    TeleportClickButton.Text = "Teleport to Spawn"
+    TeleportClickButton.Text = "TP"
     TeleportClickButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     TeleportClickButton.TextSize = 16
     TeleportClickButton.Font = Enum.Font.GothamBold
