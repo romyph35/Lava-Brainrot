@@ -403,8 +403,8 @@ local function setupAutoCelestial()
     print("✅ Auto Celestial listener is ACTIVE and waiting for notification!")
 end
 
--- Function to claim cash from a brainrot when transparency changes
-local function claimCashFromBrainrot(claimPart, brainrot)
+-- Function to claim cash from all plots
+local function claimAllPlots()
     if not autoClaimEnabled then return end
     
     local character = LocalPlayer.Character
@@ -413,76 +413,62 @@ local function claimCashFromBrainrot(claimPart, brainrot)
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     if not humanoidRootPart then return end
     
-    -- Check if the claim part is visible (transparency is not 1)
-    if claimPart.Transparency ~= 1 then
-        -- Use firetouchinterest to touch the claim part
-        firetouchinterest(humanoidRootPart, claimPart, 0)
-        wait(0.01)
-        firetouchinterest(humanoidRootPart, claimPart, 1)
-        
-        print("💰 Claimed cash from brainrot: " .. brainrot.Name)
-    end
-end
-
--- Function to setup auto claim for a single plot
-local function setupPlotAutoClaim(plot)
-    local places = plot:FindFirstChild("Places")
-    local brainrots = plot:FindFirstChild("Brainrots")
+    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
+    if not gameFolder then return end
     
-    if not places or not brainrots then return end
+    local plots = gameFolder:FindFirstChild("Plots")
+    if not plots then return end
     
-    -- Monitor each place's claim part
-    for _, place in pairs(places:GetChildren()) do
-        local claimAtt = place:FindFirstChild("ClaimAtt")
-        if claimAtt then
-            local claimPart = claimAtt:FindFirstChild("Claim")
-            if claimPart then
-                -- Find corresponding brainrot
-                local brainrot = brainrots:FindFirstChild(place.Name)
-                
-                -- Connect to transparency changes
-                local connection = claimPart:GetPropertyChangedSignal("Transparency"):Connect(function()
-                    if brainrot then
-                        claimCashFromBrainrot(claimPart, brainrot)
+    local claimedCount = 0
+    
+    -- Loop through all plots
+    for plotNum = 1, TOTAL_PLOTS do
+        local plot = plots:FindFirstChild(tostring(plotNum))
+        if plot then
+            local brainrots = plot:FindFirstChild("Brainrots")
+            local places = plot:FindFirstChild("Places")
+            
+            if brainrots and places then
+                -- Check each brainrot
+                for _, brainrot in pairs(brainrots:GetChildren()) do
+                    local place = places:FindFirstChild(brainrot.Name)
+                    
+                    if place then
+                        local claimAtt = place:FindFirstChild("ClaimAtt")
+                        if claimAtt then
+                            local claimPart = claimAtt:FindFirstChild("Claim")
+                            
+                            -- Check if claim part is visible (has cash)
+                            if claimPart and claimPart.Transparency ~= 1 then
+                                -- Touch the claim part
+                                firetouchinterest(humanoidRootPart, claimPart, 0)
+                                wait(0.01)
+                                firetouchinterest(humanoidRootPart, claimPart, 1)
+                                
+                                claimedCount = claimedCount + 1
+                                wait(0.05)
+                            end
+                        end
                     end
-                end)
-                
-                table.insert(claimConnections, connection)
-                
-                -- Also check immediately if already visible
-                if autoClaimEnabled and brainrot then
-                    claimCashFromBrainrot(claimPart, brainrot)
                 end
             end
         end
     end
     
-    -- Monitor when new brainrots are added
-    local brainrotAddedConnection = brainrots.ChildAdded:Connect(function(brainrot)
-        if not autoClaimEnabled then return end
-        
-        wait(0.1) -- Small delay to ensure claim part is ready
-        
-        local place = places:FindFirstChild(brainrot.Name)
-        if place then
-            local claimAtt = place:FindFirstChild("ClaimAtt")
-            if claimAtt then
-                local claimPart = claimAtt:FindFirstChild("Claim")
-                if claimPart then
-                    claimCashFromBrainrot(claimPart, brainrot)
-                end
-            end
-        end
-    end)
+    if claimedCount > 0 then
+        print("💰 Claimed cash from " .. claimedCount .. " brainrots!")
+    end
     
-    table.insert(claimConnections, brainrotAddedConnection)
+    return claimedCount
 end
 
--- Function to setup auto claim for all plots
+-- Function to setup auto claim cash with continuous loop
 local function setupAutoClaimCash()
     -- Disconnect all existing connections
     for _, connection in pairs(claimConnections) do
-        connection:Disconnect()
+        if connection and connection.Disconnect then
+            connection:Disconnect()
+        end
     end
     claimConnections = {}
     
@@ -492,35 +478,42 @@ local function setupAutoClaimCash()
     end
     
     print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
-    print("📍 Monitoring: Workspace > GameFolder > Plots > [All] > Places > ClaimAtt > Claim")
-    print("🔄 Watching for Claim transparency changes...")
+    print("📍 Monitoring: Workspace > GameFolder > Plots > [1-30]")
+    print("🔄 Continuously checking all plots for claimable cash...")
     
-    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
-    if not gameFolder then
-        warn("❌ GameFolder not found!")
-        return
+    -- Method 1: Listen to AnimateBrainrot event
+    local events = ReplicatedStorage:FindFirstChild("Events")
+    if events then
+        local animateEvent = events:FindFirstChild("AnimateBrainrot")
+        if animateEvent then
+            local animConnection = animateEvent.OnClientEvent:Connect(function(brainrot)
+                if not autoClaimEnabled then return end
+                
+                -- When a brainrot animates, try to claim it
+                wait(0.1)
+                claimAllPlots()
+            end)
+            table.insert(claimConnections, animConnection)
+            print("✅ Listening to AnimateBrainrot event")
+        end
     end
     
-    local plots = gameFolder:FindFirstChild("Plots")
-    if not plots then
-        warn("❌ Plots folder not found!")
-        return
-    end
+    -- Method 2: Continuous loop as backup
+    local loopRunning = true
+    table.insert(claimConnections, {
+        Disconnect = function()
+            loopRunning = false
+        end
+    })
     
-    -- Setup auto claim for all existing plots
-    for _, plot in pairs(plots:GetChildren()) do
-        setupPlotAutoClaim(plot)
-    end
-    
-    -- Monitor for new plots being added
-    local plotAddedConnection = plots.ChildAdded:Connect(function(plot)
-        setupPlotAutoClaim(plot)
-    end)
-    
-    table.insert(claimConnections, plotAddedConnection)
+    coroutine.wrap(function()
+        while loopRunning and autoClaimEnabled do
+            claimAllPlots()
+            wait(0.5) -- Check every 0.5 seconds
+        end
+    end)()
     
     print("✅ Auto Claim Cash is now ACTIVE!")
-    print("✅ Monitoring " .. #plots:GetChildren() .. " plots for claimable cash")
 end
 
 -- Character respawn handler
@@ -622,3 +615,4 @@ end
 
 LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 setupUnlimitedJumping()
+
