@@ -422,17 +422,25 @@ local function claimPlotCash(plotNumber)
     local plot = plots:FindFirstChild(tostring(plotNumber))
     if not plot then return false end
     
-    -- Find ClaimAtt > Claim
-    local claimAtt = plot:FindFirstChild("ClaimAtt")
-    if not claimAtt then return false end
+    -- Find the Claim part inside Places > 1
+    local places = plot:FindFirstChild("Places")
+    if not places then return false end
     
-    local claimPart = claimAtt:FindFirstChild("Claim")
+    local place1 = places:FindFirstChild("1")
+    if not place1 then return false end
+    
+    local claimPart = place1:FindFirstChild("Claim")
     if not claimPart then return false end
     
-    -- Use firetouchinterest to touch the Claim part (no teleporting needed!)
-    firetouchinterest(humanoidRootPart, claimPart, 0) -- Touch start
-    wait(0.01)
-    firetouchinterest(humanoidRootPart, claimPart, 1) -- Touch end
+    -- Touch the Claim part by teleporting to it
+    local originalPosition = humanoidRootPart.CFrame
+    humanoidRootPart.CFrame = claimPart.CFrame
+    
+    -- Wait a moment for the touch to register
+    wait(0.05)
+    
+    -- Teleport back to original position
+    humanoidRootPart.CFrame = originalPosition
     
     return true
 end
@@ -451,14 +459,12 @@ local function setupAutoClaimCash()
     
     claimLoop = true
     print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
-    print("📍 Path: Workspace > GameFolder > Plots > [1-" .. TOTAL_PLOTS .. "] > ClaimAtt > Claim")
-    print("🔄 Using firetouchinterest to claim cash from all plots...")
+    print("📍 Monitoring: Workspace > GameFolder > Plots (1-" .. TOTAL_PLOTS .. ")")
+    print("🔄 Claiming cash from all plots...")
     
     -- Spawn a coroutine to continuously claim cash
     coroutine.wrap(function()
         while claimLoop and autoClaimEnabled do
-            local totalClaimed = 0
-            
             for plotNumber = 1, TOTAL_PLOTS do
                 if not claimLoop or not autoClaimEnabled then
                     break
@@ -466,18 +472,15 @@ local function setupAutoClaimCash()
                 
                 local success = claimPlotCash(plotNumber)
                 if success then
-                    totalClaimed = totalClaimed + 1
+                    -- Optional: print success message (can be commented out to reduce spam)
+                    -- print("✅ Claimed cash from Plot " .. plotNumber)
                 end
                 
                 wait(CLAIM_INTERVAL)
             end
             
-            if totalClaimed > 0 then
-                print("💰 Claimed cash from " .. totalClaimed .. " plots!")
-            end
-            
             -- Small delay before starting the next round
-            wait(0.5)
+            wait(0.1)
         end
         
         print("💰 ========== AUTO CLAIM CASH STOPPED ========== 💰")
@@ -584,3 +587,4 @@ end
 
 LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 setupUnlimitedJumping()
+
