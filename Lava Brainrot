@@ -1,4 +1,4 @@
--- Unlimited Jump Script with Toggle UI, Teleport, Auto Celestial Grab, Auto Claim Cash
+-- Unlimited Jump Script with Toggle UI, Teleport, Auto Celestial Grab
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
@@ -7,16 +7,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Configuration
 local UNLIMITED_JUMP_POWER = 50
 local ORIGINAL_JUMP_POWER = 50
-local TOTAL_PLOTS = 30
-local CLAIM_INTERVAL = 0.1 -- Time between claim attempts (seconds)
 
 -- State
 local unlimitedJumpEnabled = false
 local originalJumpPower = ORIGINAL_JUMP_POWER
 local autoCelestialEnabled = false
 local celestialConnection
-local autoClaimEnabled = false
-local claimLoop
 
 -- Create UI
 local function createUI()
@@ -43,10 +39,10 @@ local function createUI()
     OpenCorner.CornerRadius = UDim.new(0, 8)
     OpenCorner.Parent = OpenButton
     
-    -- Main Frame (increased height for new button)
+    -- Main Frame
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 200, 0, 225)
+    MainFrame.Size = UDim2.new(0, 200, 0, 180)
     MainFrame.Position = UDim2.new(0.5, -100, 0.1, 0)
     MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     MainFrame.BorderSizePixel = 0
@@ -138,23 +134,6 @@ local function createUI()
     CelestialCorner.CornerRadius = UDim.new(0, 6)
     CelestialCorner.Parent = CelestialButton
     
-    -- Auto Claim Cash Button
-    local ClaimButton = Instance.new("TextButton")
-    ClaimButton.Name = "ClaimButton"
-    ClaimButton.Size = UDim2.new(0, 180, 0, 35)
-    ClaimButton.Position = UDim2.new(0, 10, 0, 175)
-    ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    ClaimButton.BorderSizePixel = 0
-    ClaimButton.Text = "Auto Claim: OFF"
-    ClaimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ClaimButton.TextSize = 13
-    ClaimButton.Font = Enum.Font.GothamBold
-    ClaimButton.Parent = MainFrame
-    
-    local ClaimCorner = Instance.new("UICorner")
-    ClaimCorner.CornerRadius = UDim.new(0, 6)
-    ClaimCorner.Parent = ClaimButton
-    
     -- Make draggable
     local dragging = false
     local dragInput, mousePos, framePos
@@ -193,7 +172,7 @@ local function createUI()
     
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    return ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, OpenButton, MainFrame
+    return ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, OpenButton, MainFrame
 end
 
 -- Function to enable/disable unlimited jump
@@ -404,89 +383,6 @@ local function setupAutoCelestial()
     print("✅ Auto Celestial listener is ACTIVE and waiting for notification!")
 end
 
--- Function to claim cash from a single plot
-local function claimPlotCash(plotNumber)
-    local character = LocalPlayer.Character
-    if not character then return false end
-    
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return false end
-    
-    -- Navigate to Workspace > GameFolder > Plots > [PlotNumber]
-    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
-    if not gameFolder then return false end
-    
-    local plots = gameFolder:FindFirstChild("Plots")
-    if not plots then return false end
-    
-    local plot = plots:FindFirstChild(tostring(plotNumber))
-    if not plot then return false end
-    
-    -- Find the Claim part inside Places > 1
-    local places = plot:FindFirstChild("Places")
-    if not places then return false end
-    
-    local place1 = places:FindFirstChild("1")
-    if not place1 then return false end
-    
-    local claimPart = place1:FindFirstChild("Claim")
-    if not claimPart then return false end
-    
-    -- Touch the Claim part by teleporting to it
-    local originalPosition = humanoidRootPart.CFrame
-    humanoidRootPart.CFrame = claimPart.CFrame
-    
-    -- Wait a moment for the touch to register
-    wait(0.05)
-    
-    -- Teleport back to original position
-    humanoidRootPart.CFrame = originalPosition
-    
-    return true
-end
-
--- Function to setup auto claim cash
-local function setupAutoClaimCash()
-    if claimLoop then
-        claimLoop = false
-        wait(0.2) -- Wait for any ongoing loop to finish
-    end
-    
-    if not autoClaimEnabled then
-        print("⏹️ Auto Claim Cash disabled")
-        return
-    end
-    
-    claimLoop = true
-    print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
-    print("📍 Monitoring: Workspace > GameFolder > Plots (1-" .. TOTAL_PLOTS .. ")")
-    print("🔄 Claiming cash from all plots...")
-    
-    -- Spawn a coroutine to continuously claim cash
-    coroutine.wrap(function()
-        while claimLoop and autoClaimEnabled do
-            for plotNumber = 1, TOTAL_PLOTS do
-                if not claimLoop or not autoClaimEnabled then
-                    break
-                end
-                
-                local success = claimPlotCash(plotNumber)
-                if success then
-                    -- Optional: print success message (can be commented out to reduce spam)
-                    -- print("✅ Claimed cash from Plot " .. plotNumber)
-                end
-                
-                wait(CLAIM_INTERVAL)
-            end
-            
-            -- Small delay before starting the next round
-            wait(0.1)
-        end
-        
-        print("💰 ========== AUTO CLAIM CASH STOPPED ========== 💰")
-    end)()
-end
-
 -- Character respawn handler
 local function onCharacterAdded(character)
     local humanoid = character:WaitForChild("Humanoid")
@@ -503,15 +399,10 @@ local function onCharacterAdded(character)
     end
     
     setupUnlimitedJumping()
-    
-    -- Restart auto claim if it was enabled
-    if autoClaimEnabled then
-        setupAutoClaimCash()
-    end
 end
 
 -- Initialize
-local ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, OpenButton, MainFrame = createUI()
+local ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, OpenButton, MainFrame = createUI()
 
 -- Toggle button click handler
 ToggleButton.MouseButton1Click:Connect(function()
@@ -552,22 +443,6 @@ CelestialButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Auto Claim Cash button click handler
-ClaimButton.MouseButton1Click:Connect(function()
-    autoClaimEnabled = not autoClaimEnabled
-    
-    if autoClaimEnabled then
-        ClaimButton.Text = "Auto Claim: ON"
-        ClaimButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-        setupAutoClaimCash()
-    else
-        ClaimButton.Text = "Auto Claim: OFF"
-        ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        claimLoop = false
-        print("⏹️ Auto Claim Cash has been disabled")
-    end
-end)
-
 -- Close button click handler (hides UI, shows open button)
 CloseButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
@@ -587,4 +462,3 @@ end
 
 LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 setupUnlimitedJumping()
-
