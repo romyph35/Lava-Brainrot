@@ -406,6 +406,12 @@ end
 
 -- Function to claim cash from a single plot
 local function claimPlotCash(plotNumber)
+    local character = LocalPlayer.Character
+    if not character then return false end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return false end
+    
     -- Navigate to Workspace > GameFolder > Plots > [PlotNumber]
     local gameFolder = game.Workspace:FindFirstChild("GameFolder")
     if not gameFolder then return false end
@@ -416,55 +422,19 @@ local function claimPlotCash(plotNumber)
     local plot = plots:FindFirstChild(tostring(plotNumber))
     if not plot then return false end
     
-    -- Find the Brainrots folder in the plot
-    local brainrots = plot:FindFirstChild("Brainrots")
-    if not brainrots then return false end
+    -- Find ClaimAtt > Claim
+    local claimAtt = plot:FindFirstChild("ClaimAtt")
+    if not claimAtt then return false end
     
-    -- Get all brainrot children in the plot
-    local brainrotChildren = brainrots:GetChildren()
-    if #brainrotChildren == 0 then return false end
+    local claimPart = claimAtt:FindFirstChild("Claim")
+    if not claimPart then return false end
     
-    -- Get ReplicatedStorage events
-    local events = ReplicatedStorage:FindFirstChild("Events")
-    if not events then 
-        warn("❌ Events folder not found in ReplicatedStorage!")
-        return false 
-    end
+    -- Use firetouchinterest to touch the Claim part (no teleporting needed!)
+    firetouchinterest(humanoidRootPart, claimPart, 0) -- Touch start
+    wait(0.01)
+    firetouchinterest(humanoidRootPart, claimPart, 1) -- Touch end
     
-    local animateBrainrotEvent = events:FindFirstChild("AnimateBrainrot")
-    local playSoundEvent = events:FindFirstChild("PlaySound")
-    
-    if not animateBrainrotEvent then
-        warn("❌ AnimateBrainrot event not found!")
-        return false
-    end
-    
-    if not playSoundEvent then
-        warn("❌ PlaySound event not found!")
-        return false
-    end
-    
-    -- Claim cash from all brainrots in this plot
-    local claimedCount = 0
-    for _, brainrot in pairs(brainrotChildren) do
-        -- Fire the AnimateBrainrot event
-        firesignal(animateBrainrotEvent.OnClientEvent, brainrot)
-        claimedCount = claimedCount + 1
-    end
-    
-    -- Play the collect sound once per plot
-    if claimedCount > 0 then
-        local soundService = game:GetService("SoundService")
-        local sfx = soundService:FindFirstChild("SFX")
-        if sfx then
-            local collectSound = sfx:FindFirstChild("Collect")
-            if collectSound then
-                firesignal(playSoundEvent.OnClientEvent, collectSound)
-            end
-        end
-    end
-    
-    return claimedCount > 0
+    return true
 end
 
 -- Function to setup auto claim cash
@@ -481,8 +451,8 @@ local function setupAutoClaimCash()
     
     claimLoop = true
     print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
-    print("📍 Monitoring: Workspace > GameFolder > Plots (1-" .. TOTAL_PLOTS .. ")")
-    print("🔄 Claiming cash from all plots...")
+    print("📍 Path: Workspace > GameFolder > Plots > [1-" .. TOTAL_PLOTS .. "] > ClaimAtt > Claim")
+    print("🔄 Using firetouchinterest to claim cash from all plots...")
     
     -- Spawn a coroutine to continuously claim cash
     coroutine.wrap(function()
