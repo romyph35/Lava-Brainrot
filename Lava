@@ -1,4 +1,4 @@
--- Unlimited Jump Script with Toggle UI, Teleport, Auto Celestial Grab
+-- Unlimited Jump Script with Toggle UI, Teleport, Auto Celestial Grab, Auto Claim Cash
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
@@ -7,12 +7,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Configuration
 local UNLIMITED_JUMP_POWER = 50
 local ORIGINAL_JUMP_POWER = 50
+local TOTAL_PLOTS = 30
 
 -- State
 local unlimitedJumpEnabled = false
 local originalJumpPower = ORIGINAL_JUMP_POWER
 local autoCelestialEnabled = false
 local celestialConnection
+local autoClaimEnabled = false
+local claimConnections = {}
 
 -- Create UI
 local function createUI()
@@ -39,10 +42,10 @@ local function createUI()
     OpenCorner.CornerRadius = UDim.new(0, 8)
     OpenCorner.Parent = OpenButton
     
-    -- Main Frame
+    -- Main Frame (increased height for auto claim button)
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 200, 0, 180)
+    MainFrame.Size = UDim2.new(0, 200, 0, 225)
     MainFrame.Position = UDim2.new(0.5, -100, 0.1, 0)
     MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     MainFrame.BorderSizePixel = 0
@@ -134,6 +137,23 @@ local function createUI()
     CelestialCorner.CornerRadius = UDim.new(0, 6)
     CelestialCorner.Parent = CelestialButton
     
+    -- Auto Claim Cash Button
+    local ClaimButton = Instance.new("TextButton")
+    ClaimButton.Name = "ClaimButton"
+    ClaimButton.Size = UDim2.new(0, 180, 0, 35)
+    ClaimButton.Position = UDim2.new(0, 10, 0, 175)
+    ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    ClaimButton.BorderSizePixel = 0
+    ClaimButton.Text = "Auto Claim: OFF"
+    ClaimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ClaimButton.TextSize = 13
+    ClaimButton.Font = Enum.Font.GothamBold
+    ClaimButton.Parent = MainFrame
+    
+    local ClaimCorner = Instance.new("UICorner")
+    ClaimCorner.CornerRadius = UDim.new(0, 6)
+    ClaimCorner.Parent = ClaimButton
+    
     -- Make draggable
     local dragging = false
     local dragInput, mousePos, framePos
@@ -172,7 +192,7 @@ local function createUI()
     
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    return ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, OpenButton, MainFrame
+    return ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, OpenButton, MainFrame
 end
 
 -- Function to enable/disable unlimited jump
@@ -383,6 +403,126 @@ local function setupAutoCelestial()
     print("✅ Auto Celestial listener is ACTIVE and waiting for notification!")
 end
 
+-- Function to claim cash from a brainrot when transparency changes
+local function claimCashFromBrainrot(claimPart, brainrot)
+    if not autoClaimEnabled then return end
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    -- Check if the claim part is visible (transparency is not 1)
+    if claimPart.Transparency ~= 1 then
+        -- Use firetouchinterest to touch the claim part
+        firetouchinterest(humanoidRootPart, claimPart, 0)
+        wait(0.01)
+        firetouchinterest(humanoidRootPart, claimPart, 1)
+        
+        print("💰 Claimed cash from brainrot: " .. brainrot.Name)
+    end
+end
+
+-- Function to setup auto claim for a single plot
+local function setupPlotAutoClaim(plot)
+    local places = plot:FindFirstChild("Places")
+    local brainrots = plot:FindFirstChild("Brainrots")
+    
+    if not places or not brainrots then return end
+    
+    -- Monitor each place's claim part
+    for _, place in pairs(places:GetChildren()) do
+        local claimAtt = place:FindFirstChild("ClaimAtt")
+        if claimAtt then
+            local claimPart = claimAtt:FindFirstChild("Claim")
+            if claimPart then
+                -- Find corresponding brainrot
+                local brainrot = brainrots:FindFirstChild(place.Name)
+                
+                -- Connect to transparency changes
+                local connection = claimPart:GetPropertyChangedSignal("Transparency"):Connect(function()
+                    if brainrot then
+                        claimCashFromBrainrot(claimPart, brainrot)
+                    end
+                end)
+                
+                table.insert(claimConnections, connection)
+                
+                -- Also check immediately if already visible
+                if autoClaimEnabled and brainrot then
+                    claimCashFromBrainrot(claimPart, brainrot)
+                end
+            end
+        end
+    end
+    
+    -- Monitor when new brainrots are added
+    local brainrotAddedConnection = brainrots.ChildAdded:Connect(function(brainrot)
+        if not autoClaimEnabled then return end
+        
+        wait(0.1) -- Small delay to ensure claim part is ready
+        
+        local place = places:FindFirstChild(brainrot.Name)
+        if place then
+            local claimAtt = place:FindFirstChild("ClaimAtt")
+            if claimAtt then
+                local claimPart = claimAtt:FindFirstChild("Claim")
+                if claimPart then
+                    claimCashFromBrainrot(claimPart, brainrot)
+                end
+            end
+        end
+    end)
+    
+    table.insert(claimConnections, brainrotAddedConnection)
+end
+
+-- Function to setup auto claim for all plots
+local function setupAutoClaimCash()
+    -- Disconnect all existing connections
+    for _, connection in pairs(claimConnections) do
+        connection:Disconnect()
+    end
+    claimConnections = {}
+    
+    if not autoClaimEnabled then
+        print("⏹️ Auto Claim Cash disabled")
+        return
+    end
+    
+    print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
+    print("📍 Monitoring: Workspace > GameFolder > Plots > [All] > Places > ClaimAtt > Claim")
+    print("🔄 Watching for Claim transparency changes...")
+    
+    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
+    if not gameFolder then
+        warn("❌ GameFolder not found!")
+        return
+    end
+    
+    local plots = gameFolder:FindFirstChild("Plots")
+    if not plots then
+        warn("❌ Plots folder not found!")
+        return
+    end
+    
+    -- Setup auto claim for all existing plots
+    for _, plot in pairs(plots:GetChildren()) do
+        setupPlotAutoClaim(plot)
+    end
+    
+    -- Monitor for new plots being added
+    local plotAddedConnection = plots.ChildAdded:Connect(function(plot)
+        setupPlotAutoClaim(plot)
+    end)
+    
+    table.insert(claimConnections, plotAddedConnection)
+    
+    print("✅ Auto Claim Cash is now ACTIVE!")
+    print("✅ Monitoring " .. #plots:GetChildren() .. " plots for claimable cash")
+end
+
 -- Character respawn handler
 local function onCharacterAdded(character)
     local humanoid = character:WaitForChild("Humanoid")
@@ -399,10 +539,15 @@ local function onCharacterAdded(character)
     end
     
     setupUnlimitedJumping()
+    
+    -- Restart auto claim if it was enabled
+    if autoClaimEnabled then
+        setupAutoClaimCash()
+    end
 end
 
 -- Initialize
-local ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, OpenButton, MainFrame = createUI()
+local ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, OpenButton, MainFrame = createUI()
 
 -- Toggle button click handler
 ToggleButton.MouseButton1Click:Connect(function()
@@ -443,6 +588,21 @@ CelestialButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Auto Claim Cash button click handler
+ClaimButton.MouseButton1Click:Connect(function()
+    autoClaimEnabled = not autoClaimEnabled
+    
+    if autoClaimEnabled then
+        ClaimButton.Text = "Auto Claim: ON"
+        ClaimButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        setupAutoClaimCash()
+    else
+        ClaimButton.Text = "Auto Claim: OFF"
+        ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        setupAutoClaimCash() -- This will disconnect all connections
+    end
+end)
+
 -- Close button click handler (hides UI, shows open button)
 CloseButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
@@ -462,15 +622,3 @@ end
 
 LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 setupUnlimitedJumping()
-
-print("🚀 ========================================")
-print("🚀 Unlimited Jump Script Loaded!")
-print("🚀 ========================================")
-print("📍 Monitoring: Workspace > GameFolder > Brainrots > Celestial")
-print("🔔 Listening for: 'A Celestial has spawned!' notification")
-print("⚡ Auto Grab Sequence:")
-print("   1️⃣ Detect notification")
-print("   2️⃣ Teleport to brainrot")
-print("   3️⃣ Trigger ProximityPrompt")
-print("   4️⃣ Teleport to spawn")
-print("🚀 ========================================")
