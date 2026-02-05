@@ -314,7 +314,7 @@ local function createUI()
 	yOffset = yOffset + buttonHeight + spacing
 
 	local ClaimFeature, ClaimToggleButton, ClaimToggleCircle = createFeature(
-		"Auto Claim Cash", 
+		"BUG PA", 
 		Color3.fromRGB(50, 255, 100), 
 		yOffset, 
 		"toggle"
