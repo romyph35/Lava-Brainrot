@@ -1,0 +1,606 @@
+-- Unlimited Jump Script with Toggle UI, Teleport, Auto Celestial Grab, Auto Claim Cash
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Configuration
+local UNLIMITED_JUMP_POWER = 50
+local ORIGINAL_JUMP_POWER = 50
+local TOTAL_PLOTS = 30
+local CLAIM_INTERVAL = 0.1 -- Time between claim attempts (seconds)
+
+-- State
+local unlimitedJumpEnabled = false
+local originalJumpPower = ORIGINAL_JUMP_POWER
+local autoCelestialEnabled = false
+local celestialConnection
+local autoClaimEnabled = false
+local claimLoop
+
+-- Create UI
+local function createUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "UnlimitedJumpUI"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Open Button (shows when UI is closed)
+    local OpenButton = Instance.new("TextButton")
+    OpenButton.Name = "OpenButton"
+    OpenButton.Size = UDim2.new(0, 50, 0, 50)
+    OpenButton.Position = UDim2.new(0, 10, 0.5, -25)
+    OpenButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    OpenButton.BorderSizePixel = 0
+    OpenButton.Text = ">"
+    OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    OpenButton.TextSize = 24
+    OpenButton.Font = Enum.Font.GothamBold
+    OpenButton.Visible = false
+    OpenButton.Parent = ScreenGui
+    
+    local OpenCorner = Instance.new("UICorner")
+    OpenCorner.CornerRadius = UDim.new(0, 8)
+    OpenCorner.Parent = OpenButton
+    
+    -- Main Frame (increased height for new button)
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 200, 0, 225)
+    MainFrame.Position = UDim2.new(0.5, -100, 0.1, 0)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Parent = ScreenGui
+    
+    -- Add rounded corners
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 8)
+    UICorner.Parent = MainFrame
+    
+    -- Title
+    local Title = Instance.new("TextLabel")
+    Title.Name = "Title"
+    Title.Size = UDim2.new(1, -40, 0, 30)
+    Title.Position = UDim2.new(0, 10, 0, 5)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Unlimited Jump"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextSize = 16
+    Title.Font = Enum.Font.GothamBold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = MainFrame
+    
+    -- Close Button (X)
+    local CloseButton = Instance.new("TextButton")
+    CloseButton.Name = "CloseButton"
+    CloseButton.Size = UDim2.new(0, 30, 0, 30)
+    CloseButton.Position = UDim2.new(1, -35, 0, 5)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    CloseButton.BorderSizePixel = 0
+    CloseButton.Text = "X"
+    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseButton.TextSize = 18
+    CloseButton.Font = Enum.Font.GothamBold
+    CloseButton.Parent = MainFrame
+    
+    local CloseCorner = Instance.new("UICorner")
+    CloseCorner.CornerRadius = UDim.new(0, 6)
+    CloseCorner.Parent = CloseButton
+    
+    -- Toggle Button
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Name = "ToggleButton"
+    ToggleButton.Size = UDim2.new(0, 180, 0, 35)
+    ToggleButton.Position = UDim2.new(0, 10, 0, 40)
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Text = "Jump: OFF"
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.TextSize = 16
+    ToggleButton.Font = Enum.Font.GothamBold
+    ToggleButton.Parent = MainFrame
+    
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 6)
+    ToggleCorner.Parent = ToggleButton
+    
+    -- Teleport to Spawn Button
+    local TeleportButton = Instance.new("TextButton")
+    TeleportButton.Name = "TeleportButton"
+    TeleportButton.Size = UDim2.new(0, 180, 0, 35)
+    TeleportButton.Position = UDim2.new(0, 10, 0, 85)
+    TeleportButton.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+    TeleportButton.BorderSizePixel = 0
+    TeleportButton.Text = "Teleport to Spawn"
+    TeleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TeleportButton.TextSize = 14
+    TeleportButton.Font = Enum.Font.GothamBold
+    TeleportButton.Parent = MainFrame
+    
+    local TeleportCorner = Instance.new("UICorner")
+    TeleportCorner.CornerRadius = UDim.new(0, 6)
+    TeleportCorner.Parent = TeleportButton
+    
+    -- Auto Celestial Button
+    local CelestialButton = Instance.new("TextButton")
+    CelestialButton.Name = "CelestialButton"
+    CelestialButton.Size = UDim2.new(0, 180, 0, 35)
+    CelestialButton.Position = UDim2.new(0, 10, 0, 130)
+    CelestialButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    CelestialButton.BorderSizePixel = 0
+    CelestialButton.Text = "Auto Celestial: OFF"
+    CelestialButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CelestialButton.TextSize = 13
+    CelestialButton.Font = Enum.Font.GothamBold
+    CelestialButton.Parent = MainFrame
+    
+    local CelestialCorner = Instance.new("UICorner")
+    CelestialCorner.CornerRadius = UDim.new(0, 6)
+    CelestialCorner.Parent = CelestialButton
+    
+    -- Auto Claim Cash Button
+    local ClaimButton = Instance.new("TextButton")
+    ClaimButton.Name = "ClaimButton"
+    ClaimButton.Size = UDim2.new(0, 180, 0, 35)
+    ClaimButton.Position = UDim2.new(0, 10, 0, 175)
+    ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    ClaimButton.BorderSizePixel = 0
+    ClaimButton.Text = "Auto Claim: OFF"
+    ClaimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ClaimButton.TextSize = 13
+    ClaimButton.Font = Enum.Font.GothamBold
+    ClaimButton.Parent = MainFrame
+    
+    local ClaimCorner = Instance.new("UICorner")
+    ClaimCorner.CornerRadius = UDim.new(0, 6)
+    ClaimCorner.Parent = ClaimButton
+    
+    -- Make draggable
+    local dragging = false
+    local dragInput, mousePos, framePos
+    
+    MainFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            mousePos = input.Position
+            framePos = MainFrame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    MainFrame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - mousePos
+            MainFrame.Position = UDim2.new(
+                framePos.X.Scale,
+                framePos.X.Offset + delta.X,
+                framePos.Y.Scale,
+                framePos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    
+    return ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, OpenButton, MainFrame
+end
+
+-- Function to enable/disable unlimited jump
+local function setUnlimitedJump(enabled)
+    unlimitedJumpEnabled = enabled
+    
+    local character = LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            if enabled then
+                originalJumpPower = humanoid.JumpPower
+                humanoid.JumpPower = UNLIMITED_JUMP_POWER
+                
+                -- Allow infinite jumps
+                humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+            else
+                humanoid.JumpPower = originalJumpPower
+            end
+        end
+    end
+end
+
+-- Handle jump input for unlimited jumping
+local jumpConnection
+local function setupUnlimitedJumping()
+    if jumpConnection then
+        jumpConnection:Disconnect()
+    end
+    
+    jumpConnection = UserInputService.JumpRequest:Connect(function()
+        if unlimitedJumpEnabled then
+            local character = LocalPlayer.Character
+            if character then
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end
+    end)
+end
+
+-- Function to teleport to spawn
+local function teleportToSpawn()
+    local character = LocalPlayer.Character
+    if not character then
+        warn("Character not found!")
+        return
+    end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then
+        warn("HumanoidRootPart not found!")
+        return
+    end
+    
+    -- Find SpawnLocation in Workspace
+    local spawnLocation = game.Workspace:FindFirstChild("SpawnLocation")
+    
+    if spawnLocation then
+        -- Teleport to spawn location
+        humanoidRootPart.CFrame = spawnLocation.CFrame + Vector3.new(0, 3, 0)
+        print("✅ Teleported to spawn!")
+    else
+        warn("❌ SpawnLocation not found in Workspace!")
+    end
+end
+
+-- Function to find celestial brainrot ProximityPrompt
+local function findCelestialPrompt()
+    -- Navigate to Workspace > GameFolder > Brainrots > Celestial
+    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
+    if not gameFolder then
+        warn("❌ GameFolder not found!")
+        return nil, nil
+    end
+    
+    local brainrots = gameFolder:FindFirstChild("Brainrots")
+    if not brainrots then
+        warn("❌ Brainrots folder not found!")
+        return nil, nil
+    end
+    
+    local celestialFolder = brainrots:FindFirstChild("Celestial")
+    if not celestialFolder then
+        warn("❌ Celestial folder not found!")
+        return nil, nil
+    end
+    
+    -- Search for ProximityPrompt in the celestial folder
+    for _, descendant in ipairs(celestialFolder:GetDescendants()) do
+        if descendant:IsA("ProximityPrompt") then
+            -- Found the ProximityPrompt, now get the part it's attached to
+            local parentPart = descendant.Parent
+            print("✅ Found ProximityPrompt on: " .. parentPart.Name)
+            return descendant, parentPart
+        end
+    end
+    
+    warn("❌ ProximityPrompt not found in Celestial folder!")
+    return nil, nil
+end
+
+-- Function to grab celestial (automatic sequence)
+local function grabCelestial()
+    print("🌟 ========== AUTO CELESTIAL GRAB STARTED ========== 🌟")
+    
+    local character = LocalPlayer.Character
+    if not character then 
+        warn("❌ Character not found!")
+        return 
+    end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then 
+        warn("❌ HumanoidRootPart not found!")
+        return 
+    end
+    
+    -- Step 1: Find the ProximityPrompt
+    print("🔍 Step 1: Searching for celestial ProximityPrompt...")
+    local proximityPrompt, promptPart = findCelestialPrompt()
+    
+    if not proximityPrompt or not promptPart then
+        warn("❌ Could not find celestial ProximityPrompt!")
+        return
+    end
+    
+    print("✅ ProximityPrompt found successfully!")
+    
+    -- Step 2: Teleport to the brainrot
+    print("🚀 Step 2: Teleporting to celestial brainrot...")
+    humanoidRootPart.CFrame = promptPart.CFrame + Vector3.new(0, 3, 0)
+    print("✅ Teleported to celestial!")
+    
+    -- Wait for teleport to complete
+    wait(0.5)
+    
+    -- Step 3: Trigger the ProximityPrompt to grab it
+    print("👋 Step 3: Grabbing celestial via ProximityPrompt...")
+    if proximityPrompt.Enabled then
+        fireproximityprompt(proximityPrompt)
+        print("✅ ProximityPrompt triggered!")
+        
+        -- Also fire the Tutorial event as backup
+        wait(0.2)
+        local events = ReplicatedStorage:FindFirstChild("Events")
+        if events then
+            local tutorialEvent = events:FindFirstChild("Tutorial")
+            if tutorialEvent then
+                tutorialEvent:FireServer("Grab")
+                print("✅ Tutorial 'Grab' event fired!")
+            end
+        end
+    else
+        warn("⚠️ ProximityPrompt is disabled!")
+    end
+    
+    -- Step 4: Wait then teleport back to spawn
+    print("⏳ Step 4: Waiting before returning to spawn...")
+    wait(1.5)
+    
+    print("🏠 Step 5: Teleporting back to spawn...")
+    teleportToSpawn()
+    
+    print("🌟 ========== AUTO CELESTIAL GRAB COMPLETE ========== 🌟")
+end
+
+-- Function to setup auto celestial
+local function setupAutoCelestial()
+    if celestialConnection then
+        celestialConnection:Disconnect()
+        celestialConnection = nil
+    end
+    
+    if not autoCelestialEnabled then
+        print("⏹️ Auto Celestial disabled")
+        return
+    end
+    
+    -- Listen for celestial spawn notification
+    local events = ReplicatedStorage:FindFirstChild("Events")
+    if not events then
+        warn("❌ Events folder not found in ReplicatedStorage!")
+        return
+    end
+    
+    local notificationEvent = events:FindFirstChild("Notification")
+    if not notificationEvent then
+        warn("❌ Notification event not found!")
+        return
+    end
+    
+    celestialConnection = notificationEvent.OnClientEvent:Connect(function(message, data)
+        -- Check if it's the celestial spawn notification and auto-grab is enabled
+        if autoCelestialEnabled and message == "A Celestial has spawned!" then
+            print("🔔 CELESTIAL NOTIFICATION RECEIVED!")
+            
+            -- Wait a moment for the celestial to fully spawn
+            wait(1)
+            
+            -- Execute the automatic grab sequence
+            grabCelestial()
+        end
+    end)
+    
+    print("✅ Auto Celestial listener is ACTIVE and waiting for notification!")
+end
+
+-- Function to claim cash from a single plot
+local function claimPlotCash(plotNumber)
+    local character = LocalPlayer.Character
+    if not character then return false end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return false end
+    
+    -- Navigate to Workspace > GameFolder > Plots > [PlotNumber]
+    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
+    if not gameFolder then return false end
+    
+    local plots = gameFolder:FindFirstChild("Plots")
+    if not plots then return false end
+    
+    local plot = plots:FindFirstChild(tostring(plotNumber))
+    if not plot then return false end
+    
+    -- Find the Claim part inside Places > 1
+    local places = plot:FindFirstChild("Places")
+    if not places then return false end
+    
+    local place1 = places:FindFirstChild("1")
+    if not place1 then return false end
+    
+    local claimPart = place1:FindFirstChild("Claim")
+    if not claimPart then return false end
+    
+    -- Touch the Claim part by teleporting to it
+    local originalPosition = humanoidRootPart.CFrame
+    humanoidRootPart.CFrame = claimPart.CFrame
+    
+    -- Wait a moment for the touch to register
+    wait(0.05)
+    
+    -- Teleport back to original position
+    humanoidRootPart.CFrame = originalPosition
+    
+    return true
+end
+
+-- Function to setup auto claim cash
+local function setupAutoClaimCash()
+    if claimLoop then
+        claimLoop = false
+        wait(0.2) -- Wait for any ongoing loop to finish
+    end
+    
+    if not autoClaimEnabled then
+        print("⏹️ Auto Claim Cash disabled")
+        return
+    end
+    
+    claimLoop = true
+    print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
+    print("📍 Monitoring: Workspace > GameFolder > Plots (1-" .. TOTAL_PLOTS .. ")")
+    print("🔄 Claiming cash from all plots...")
+    
+    -- Spawn a coroutine to continuously claim cash
+    coroutine.wrap(function()
+        while claimLoop and autoClaimEnabled do
+            for plotNumber = 1, TOTAL_PLOTS do
+                if not claimLoop or not autoClaimEnabled then
+                    break
+                end
+                
+                local success = claimPlotCash(plotNumber)
+                if success then
+                    -- Optional: print success message (can be commented out to reduce spam)
+                    -- print("✅ Claimed cash from Plot " .. plotNumber)
+                end
+                
+                wait(CLAIM_INTERVAL)
+            end
+            
+            -- Small delay before starting the next round
+            wait(0.1)
+        end
+        
+        print("💰 ========== AUTO CLAIM CASH STOPPED ========== 💰")
+    end)()
+end
+
+-- Character respawn handler
+local function onCharacterAdded(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    -- Wait a moment for the character to fully load
+    wait(0.5)
+    
+    -- Store original jump power
+    if not unlimitedJumpEnabled then
+        originalJumpPower = humanoid.JumpPower
+    else
+        -- Reapply unlimited jump if it was enabled
+        setUnlimitedJump(true)
+    end
+    
+    setupUnlimitedJumping()
+    
+    -- Restart auto claim if it was enabled
+    if autoClaimEnabled then
+        setupAutoClaimCash()
+    end
+end
+
+-- Initialize
+local ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, OpenButton, MainFrame = createUI()
+
+-- Toggle button click handler
+ToggleButton.MouseButton1Click:Connect(function()
+    unlimitedJumpEnabled = not unlimitedJumpEnabled
+    
+    if unlimitedJumpEnabled then
+        ToggleButton.Text = "Jump: ON"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+    else
+        ToggleButton.Text = "Jump: OFF"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    end
+    
+    setUnlimitedJump(unlimitedJumpEnabled)
+end)
+
+-- Teleport button click handler
+TeleportButton.MouseButton1Click:Connect(function()
+    teleportToSpawn()
+end)
+
+-- Auto Celestial button click handler
+CelestialButton.MouseButton1Click:Connect(function()
+    autoCelestialEnabled = not autoCelestialEnabled
+    
+    if autoCelestialEnabled then
+        CelestialButton.Text = "Auto Celestial: ON"
+        CelestialButton.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+        setupAutoCelestial()
+    else
+        CelestialButton.Text = "Auto Celestial: OFF"
+        CelestialButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        if celestialConnection then
+            celestialConnection:Disconnect()
+            celestialConnection = nil
+        end
+        print("⏹️ Auto Celestial has been disabled")
+    end
+end)
+
+-- Auto Claim Cash button click handler
+ClaimButton.MouseButton1Click:Connect(function()
+    autoClaimEnabled = not autoClaimEnabled
+    
+    if autoClaimEnabled then
+        ClaimButton.Text = "Auto Claim: ON"
+        ClaimButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        setupAutoClaimCash()
+    else
+        ClaimButton.Text = "Auto Claim: OFF"
+        ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        claimLoop = false
+        print("⏹️ Auto Claim Cash has been disabled")
+    end
+end)
+
+-- Close button click handler (hides UI, shows open button)
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenButton.Visible = true
+end)
+
+-- Open button click handler
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenButton.Visible = false
+end)
+
+-- Setup character handlers
+if LocalPlayer.Character then
+    onCharacterAdded(LocalPlayer.Character)
+end
+
+LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+setupUnlimitedJumping()
+
+print("🚀 ========================================")
+print("🚀 Unlimited Jump Script Loaded!")
+print("🚀 ========================================")
+print("📍 Monitoring: Workspace > GameFolder > Brainrots > Celestial")
+print("📍 Monitoring: Workspace > GameFolder > Plots (1-30)")
+print("🔔 Listening for: 'A Celestial has spawned!' notification")
+print("⚡ Auto Grab Sequence:")
+print("   1️⃣ Detect notification")
+print("   2️⃣ Teleport to brainrot")
+print("   3️⃣ Trigger ProximityPrompt")
+print("   4️⃣ Teleport to spawn")
+print("💰 Auto Claim Cash:")
+print("   ✅ Loops through all 30 plots")
+print("   ✅ Touches Claim part in each plot")
+print("   ✅ Automatically collects cash")
+print("🚀 ========================================")
