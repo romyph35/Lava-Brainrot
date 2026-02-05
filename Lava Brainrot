@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Configuration
 local UNLIMITED_JUMP_POWER = 50
 local ORIGINAL_JUMP_POWER = 50
+local TOTAL_PLOTS = 30
 
 -- State
 local unlimitedJumpEnabled = false
@@ -14,6 +15,8 @@ local autoCelestialEnabled = false
 local celestialConnection
 local autoUpgradeEnabled = false
 local upgradeConnections = {}
+local autoClaimEnabled = false
+local claimConnections = {}
 
 -- Create UI with modern design
 local function createUI()
@@ -22,11 +25,29 @@ local function createUI()
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
+    -- Open Button (shows when UI is closed)
+    local OpenButton = Instance.new("TextButton")
+    OpenButton.Name = "OpenButton"
+    OpenButton.Size = UDim2.new(0, 50, 0, 50)
+    OpenButton.Position = UDim2.new(0, 10, 0.5, -25)
+    OpenButton.BackgroundColor3 = Color3.fromRGB(28, 30, 40)
+    OpenButton.BorderSizePixel = 0
+    OpenButton.Text = ">"
+    OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    OpenButton.TextSize = 24
+    OpenButton.Font = Enum.Font.GothamBold
+    OpenButton.Visible = false
+    OpenButton.Parent = ScreenGui
+    
+    local OpenCorner = Instance.new("UICorner")
+    OpenCorner.CornerRadius = UDim.new(0, 8)
+    OpenCorner.Parent = OpenButton
+    
     -- Main Container
     local Container = Instance.new("Frame")
     Container.Name = "Container"
-    Container.Size = UDim2.new(0, 480, 0, 360)
-    Container.Position = UDim2.new(0.5, -240, 0.5, -180)
+    Container.Size = UDim2.new(0, 480, 0, 425)
+    Container.Position = UDim2.new(0.5, -240, 0.5, -212.5)
     Container.BackgroundColor3 = Color3.fromRGB(28, 30, 40)
     Container.BorderSizePixel = 0
     Container.Parent = ScreenGui
@@ -34,6 +55,24 @@ local function createUI()
     local ContainerCorner = Instance.new("UICorner")
     ContainerCorner.CornerRadius = UDim.new(0, 12)
     ContainerCorner.Parent = Container
+    
+    -- Close Button (X)
+    local CloseButton = Instance.new("TextButton")
+    CloseButton.Name = "CloseButton"
+    CloseButton.Size = UDim2.new(0, 30, 0, 30)
+    CloseButton.Position = UDim2.new(1, -40, 0, 10)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    CloseButton.BorderSizePixel = 0
+    CloseButton.Text = "X"
+    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseButton.TextSize = 18
+    CloseButton.Font = Enum.Font.GothamBold
+    CloseButton.ZIndex = 10
+    CloseButton.Parent = Container
+    
+    local CloseCorner = Instance.new("UICorner")
+    CloseCorner.CornerRadius = UDim.new(0, 6)
+    CloseCorner.Parent = CloseButton
     
     -- Sidebar
     local Sidebar = Instance.new("Frame")
@@ -54,7 +93,7 @@ local function createUI()
     UILibTitle.Size = UDim2.new(1, -20, 0, 40)
     UILibTitle.Position = UDim2.new(0, 10, 0, 15)
     UILibTitle.BackgroundTransparency = 1
-    UILibTitle.Text = "UI Lib"
+    UILibTitle.Text = "Made by Roms"
     UILibTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
     UILibTitle.TextSize = 22
     UILibTitle.Font = Enum.Font.GothamBold
@@ -221,7 +260,7 @@ local function createUI()
     TeleportClickButton.Position = UDim2.new(1, -50, 0.5, -17.5)
     TeleportClickButton.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
     TeleportClickButton.BorderSizePixel = 0
-    TeleportClickButton.Text = "F"
+    TeleportClickButton.Text = "Teleport to Spawn"
     TeleportClickButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     TeleportClickButton.TextSize = 16
     TeleportClickButton.Font = Enum.Font.GothamBold
@@ -292,11 +331,72 @@ local function createUI()
     CelestialCircleCorner.CornerRadius = UDim.new(1, 0)
     CelestialCircleCorner.Parent = CelestialToggleCircle
     
+    -- Auto Claim Toggle
+    local ClaimToggle = Instance.new("Frame")
+    ClaimToggle.Name = "ClaimToggle"
+    ClaimToggle.Size = UDim2.new(1, 0, 0, 50)
+    ClaimToggle.Position = UDim2.new(0, 0, 0, 260)
+    ClaimToggle.BackgroundColor3 = Color3.fromRGB(38, 41, 54)
+    ClaimToggle.BorderSizePixel = 0
+    ClaimToggle.Parent = ContentArea
+    
+    local ClaimCorner = Instance.new("UICorner")
+    ClaimCorner.CornerRadius = UDim.new(0, 10)
+    ClaimCorner.Parent = ClaimToggle
+    
+    local ClaimIcon = Instance.new("TextLabel")
+    ClaimIcon.Name = "Icon"
+    ClaimIcon.Size = UDim2.new(0, 24, 0, 24)
+    ClaimIcon.Position = UDim2.new(0, 15, 0.5, -12)
+    ClaimIcon.BackgroundTransparency = 1
+    ClaimIcon.Text = "💰"
+    ClaimIcon.TextColor3 = Color3.fromRGB(50, 255, 50)
+    ClaimIcon.TextSize = 18
+    ClaimIcon.Font = Enum.Font.GothamBold
+    ClaimIcon.Parent = ClaimToggle
+    
+    local ClaimLabel = Instance.new("TextLabel")
+    ClaimLabel.Name = "Label"
+    ClaimLabel.Size = UDim2.new(1, -120, 1, 0)
+    ClaimLabel.Position = UDim2.new(0, 45, 0, 0)
+    ClaimLabel.BackgroundTransparency = 1
+    ClaimLabel.Text = "Auto Claim Cash"
+    ClaimLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+    ClaimLabel.TextSize = 15
+    ClaimLabel.Font = Enum.Font.GothamMedium
+    ClaimLabel.TextXAlignment = Enum.TextXAlignment.Left
+    ClaimLabel.Parent = ClaimToggle
+    
+    local ClaimToggleButton = Instance.new("TextButton")
+    ClaimToggleButton.Name = "ToggleButton"
+    ClaimToggleButton.Size = UDim2.new(0, 45, 0, 24)
+    ClaimToggleButton.Position = UDim2.new(1, -60, 0.5, -12)
+    ClaimToggleButton.BackgroundColor3 = Color3.fromRGB(60, 63, 78)
+    ClaimToggleButton.BorderSizePixel = 0
+    ClaimToggleButton.Text = ""
+    ClaimToggleButton.Parent = ClaimToggle
+    
+    local ClaimToggleCorner = Instance.new("UICorner")
+    ClaimToggleCorner.CornerRadius = UDim.new(1, 0)
+    ClaimToggleCorner.Parent = ClaimToggleButton
+    
+    local ClaimToggleCircle = Instance.new("Frame")
+    ClaimToggleCircle.Name = "Circle"
+    ClaimToggleCircle.Size = UDim2.new(0, 18, 0, 18)
+    ClaimToggleCircle.Position = UDim2.new(0, 3, 0.5, -9)
+    ClaimToggleCircle.BackgroundColor3 = Color3.fromRGB(140, 140, 150)
+    ClaimToggleCircle.BorderSizePixel = 0
+    ClaimToggleCircle.Parent = ClaimToggleButton
+    
+    local ClaimCircleCorner = Instance.new("UICorner")
+    ClaimCircleCorner.CornerRadius = UDim.new(1, 0)
+    ClaimCircleCorner.Parent = ClaimToggleCircle
+    
     -- Auto Upgrade Toggle
     local UpgradeToggle = Instance.new("Frame")
     UpgradeToggle.Name = "UpgradeToggle"
     UpgradeToggle.Size = UDim2.new(1, 0, 0, 50)
-    UpgradeToggle.Position = UDim2.new(0, 0, 0, 260)
+    UpgradeToggle.Position = UDim2.new(0, 0, 0, 325)
     UpgradeToggle.BackgroundColor3 = Color3.fromRGB(38, 41, 54)
     UpgradeToggle.BorderSizePixel = 0
     UpgradeToggle.Parent = ContentArea
@@ -391,7 +491,7 @@ local function createUI()
     
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    return ScreenGui, JumpToggleButton, JumpToggleCircle, TeleportClickButton, CelestialToggleButton, CelestialToggleCircle, UpgradeToggleButton, UpgradeToggleCircle
+    return ScreenGui, JumpToggleButton, JumpToggleCircle, TeleportClickButton, CelestialToggleButton, CelestialToggleCircle, ClaimToggleButton, ClaimToggleCircle, UpgradeToggleButton, UpgradeToggleCircle, CloseButton, OpenButton, Container
 end
 
 -- Function to animate toggle
@@ -618,6 +718,119 @@ local function setupAutoCelestial()
     print("✅ Auto Celestial listener is ACTIVE and waiting for notification!")
 end
 
+-- Function to claim cash from player's plot using firetouchinterest
+local function claimAllPlots()
+    if not autoClaimEnabled then return end
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    -- Get player's plot number
+    local playerPlot = LocalPlayer:GetAttribute("Plot")
+    if not playerPlot then 
+        warn("⚠️ Player doesn't have a plot assigned!")
+        return 
+    end
+    
+    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
+    if not gameFolder then return end
+    
+    local plots = gameFolder:FindFirstChild("Plots")
+    if not plots then return end
+    
+    -- Get the player's specific plot
+    local plot = plots:FindFirstChild(tostring(playerPlot))
+    if not plot then return end
+    
+    local places = plot:FindFirstChild("Places")
+    if not places then return end
+    
+    local claimedCount = 0
+    
+    -- Loop through all 30 slots in Places
+    for slotNum = 1, 30 do
+        local slot = places:FindFirstChild(tostring(slotNum))
+        if slot then
+            -- Look for Claim part directly in the slot
+            local claimPart = slot:FindFirstChild("Claim")
+            
+            -- Check if claim part exists and is visible (has cash to claim)
+            if claimPart and claimPart:IsA("BasePart") and claimPart.Transparency ~= 1 then
+                -- Fire touch interest to simulate touching the claim part
+                firetouchinterest(humanoidRootPart, claimPart, 0)
+                wait(0.01)
+                firetouchinterest(humanoidRootPart, claimPart, 1)
+                
+                claimedCount = claimedCount + 1
+                wait(0.03) -- Small delay between claims
+            end
+        end
+    end
+    
+    if claimedCount > 0 then
+        print("💰 Claimed cash from " .. claimedCount .. " brainrot slots!")
+    end
+    
+    return claimedCount
+end
+
+-- Function to setup auto claim cash with continuous loop
+local function setupAutoClaimCash()
+    -- Disconnect all existing connections
+    for _, connection in pairs(claimConnections) do
+        if connection and connection.Disconnect then
+            connection:Disconnect()
+        end
+    end
+    claimConnections = {}
+    
+    if not autoClaimEnabled then
+        print("⏹️ Auto Claim Cash disabled")
+        return
+    end
+    
+    print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
+    print("📍 Path: Workspace > GameFolder > Plots > [Your Plot] > Places > [1-30] > Claim")
+    print("🔄 Using firetouchinterest to touch Claim parts...")
+    
+    -- Method 1: Listen to AnimateBrainrot event (when brainrot produces cash)
+    local events = ReplicatedStorage:FindFirstChild("Events")
+    if events then
+        local animateEvent = events:FindFirstChild("AnimateBrainrot")
+        if animateEvent then
+            local animConnection = animateEvent.OnClientEvent:Connect(function(brainrot)
+                if not autoClaimEnabled then return end
+                
+                -- When a brainrot animates (produces), try to claim all
+                wait(0.1)
+                claimAllPlots()
+            end)
+            table.insert(claimConnections, animConnection)
+            print("✅ Listening to AnimateBrainrot event")
+        end
+    end
+    
+    -- Method 2: Continuous loop as backup
+    local loopRunning = true
+    table.insert(claimConnections, {
+        Disconnect = function()
+            loopRunning = false
+        end
+    })
+    
+    coroutine.wrap(function()
+        while loopRunning and autoClaimEnabled do
+            claimAllPlots()
+            wait(0.3) -- Check every 0.3 seconds
+        end
+    end)()
+    
+    print("✅ Auto Claim Cash is now ACTIVE!")
+end
+
 -- Function to upgrade all brainrots in player's plot
 local function upgradeAllBrainrots()
     if not autoUpgradeEnabled then return end
@@ -734,13 +947,17 @@ local function onCharacterAdded(character)
     
     setupUnlimitedJumping()
     
+    if autoClaimEnabled then
+        setupAutoClaimCash()
+    end
+    
     if autoUpgradeEnabled then
         setupAutoUpgrade()
     end
 end
 
 -- Initialize
-local ScreenGui, JumpToggleButton, JumpToggleCircle, TeleportClickButton, CelestialToggleButton, CelestialToggleCircle, UpgradeToggleButton, UpgradeToggleCircle = createUI()
+local ScreenGui, JumpToggleButton, JumpToggleCircle, TeleportClickButton, CelestialToggleButton, CelestialToggleCircle, ClaimToggleButton, ClaimToggleCircle, UpgradeToggleButton, UpgradeToggleCircle, CloseButton, OpenButton, Container = createUI()
 
 -- Jump toggle handler
 JumpToggleButton.MouseButton1Click:Connect(function()
@@ -773,6 +990,19 @@ CelestialToggleButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Claim toggle handler
+ClaimToggleButton.MouseButton1Click:Connect(function()
+    autoClaimEnabled = not autoClaimEnabled
+    animateToggle(ClaimToggleButton, ClaimToggleCircle, autoClaimEnabled, Color3.fromRGB(50, 255, 50))
+    setupAutoClaimCash()
+    
+    if autoClaimEnabled then
+        print("✅ Auto Claim Cash: ON")
+    else
+        print("⏹️ Auto Claim Cash: OFF")
+    end
+end)
+
 -- Upgrade toggle handler
 UpgradeToggleButton.MouseButton1Click:Connect(function()
     autoUpgradeEnabled = not autoUpgradeEnabled
@@ -784,6 +1014,18 @@ UpgradeToggleButton.MouseButton1Click:Connect(function()
     else
         print("⏹️ Auto Upgrade: OFF")
     end
+end)
+
+-- Close button click handler (hides UI, shows open button)
+CloseButton.MouseButton1Click:Connect(function()
+    Container.Visible = false
+    OpenButton.Visible = true
+end)
+
+-- Open button click handler (shows UI, hides open button)
+OpenButton.MouseButton1Click:Connect(function()
+    Container.Visible = true
+    OpenButton.Visible = false
 end)
 
 -- Setup character handlers
