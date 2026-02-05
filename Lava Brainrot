@@ -1,4 +1,3 @@
--- Unlimited Jump Script with Toggle UI, Teleport, Auto Celestial Grab
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
@@ -7,12 +6,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Configuration
 local UNLIMITED_JUMP_POWER = 50
 local ORIGINAL_JUMP_POWER = 50
+local TOTAL_PLOTS = 30
 
 -- State
 local unlimitedJumpEnabled = false
 local originalJumpPower = ORIGINAL_JUMP_POWER
 local autoCelestialEnabled = false
 local celestialConnection
+local autoClaimEnabled = false
+local claimConnections = {}
+local autoUpgradeEnabled = false
+local upgradeConnections = {}
 
 -- Create UI
 local function createUI()
@@ -39,10 +43,10 @@ local function createUI()
     OpenCorner.CornerRadius = UDim.new(0, 8)
     OpenCorner.Parent = OpenButton
     
-    -- Main Frame
+    -- Main Frame (increased height for new buttons)
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 200, 0, 180)
+    MainFrame.Size = UDim2.new(0, 200, 0, 270)
     MainFrame.Position = UDim2.new(0.5, -100, 0.1, 0)
     MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     MainFrame.BorderSizePixel = 0
@@ -134,6 +138,40 @@ local function createUI()
     CelestialCorner.CornerRadius = UDim.new(0, 6)
     CelestialCorner.Parent = CelestialButton
     
+    -- Auto Claim Cash Button
+    local ClaimButton = Instance.new("TextButton")
+    ClaimButton.Name = "ClaimButton"
+    ClaimButton.Size = UDim2.new(0, 180, 0, 35)
+    ClaimButton.Position = UDim2.new(0, 10, 0, 175)
+    ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    ClaimButton.BorderSizePixel = 0
+    ClaimButton.Text = "Auto Claim: OFF"
+    ClaimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ClaimButton.TextSize = 13
+    ClaimButton.Font = Enum.Font.GothamBold
+    ClaimButton.Parent = MainFrame
+    
+    local ClaimCorner = Instance.new("UICorner")
+    ClaimCorner.CornerRadius = UDim.new(0, 6)
+    ClaimCorner.Parent = ClaimButton
+    
+    -- Auto Upgrade Button
+    local UpgradeButton = Instance.new("TextButton")
+    UpgradeButton.Name = "UpgradeButton"
+    UpgradeButton.Size = UDim2.new(0, 180, 0, 35)
+    UpgradeButton.Position = UDim2.new(0, 10, 0, 220)
+    UpgradeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    UpgradeButton.BorderSizePixel = 0
+    UpgradeButton.Text = "Auto Upgrade: OFF"
+    UpgradeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    UpgradeButton.TextSize = 13
+    UpgradeButton.Font = Enum.Font.GothamBold
+    UpgradeButton.Parent = MainFrame
+    
+    local UpgradeCorner = Instance.new("UICorner")
+    UpgradeCorner.CornerRadius = UDim.new(0, 6)
+    UpgradeCorner.Parent = UpgradeButton
+    
     -- Make draggable
     local dragging = false
     local dragInput, mousePos, framePos
@@ -172,7 +210,7 @@ local function createUI()
     
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    return ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, OpenButton, MainFrame
+    return ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, UpgradeButton, OpenButton, MainFrame
 end
 
 -- Function to enable/disable unlimited jump
@@ -383,6 +421,229 @@ local function setupAutoCelestial()
     print("✅ Auto Celestial listener is ACTIVE and waiting for notification!")
 end
 
+-- Function to claim cash from all plots
+local function claimAllPlots()
+    if not autoClaimEnabled then return end
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
+    if not gameFolder then return end
+    
+    local plots = gameFolder:FindFirstChild("Plots")
+    if not plots then return end
+    
+    local claimedCount = 0
+    
+    -- Loop through all plots
+    for plotNum = 1, TOTAL_PLOTS do
+        local plot = plots:FindFirstChild(tostring(plotNum))
+        if plot then
+            local brainrots = plot:FindFirstChild("Brainrots")
+            local places = plot:FindFirstChild("Places")
+            
+            if brainrots and places then
+                -- Check each brainrot
+                for _, brainrot in pairs(brainrots:GetChildren()) do
+                    local place = places:FindFirstChild(brainrot.Name)
+                    
+                    if place then
+                        local claimAtt = place:FindFirstChild("ClaimAtt")
+                        if claimAtt then
+                            local claimPart = claimAtt:FindFirstChild("Claim")
+                            
+                            -- Check if claim part is visible (has cash)
+                            if claimPart and claimPart.Transparency ~= 1 then
+                                -- Touch the claim part
+                                firetouchinterest(humanoidRootPart, claimPart, 0)
+                                wait(0.01)
+                                firetouchinterest(humanoidRootPart, claimPart, 1)
+                                
+                                claimedCount = claimedCount + 1
+                                wait(0.05)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    if claimedCount > 0 then
+        print("💰 Claimed cash from " .. claimedCount .. " brainrots!")
+    end
+    
+    return claimedCount
+end
+
+-- Function to setup auto claim cash with continuous loop
+local function setupAutoClaimCash()
+    -- Disconnect all existing connections
+    for _, connection in pairs(claimConnections) do
+        if connection and connection.Disconnect then
+            connection:Disconnect()
+        end
+    end
+    claimConnections = {}
+    
+    if not autoClaimEnabled then
+        print("⏹️ Auto Claim Cash disabled")
+        return
+    end
+    
+    print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
+    print("📍 Monitoring: Workspace > GameFolder > Plots > [1-30]")
+    print("🔄 Continuously checking all plots for claimable cash...")
+    
+    -- Method 1: Listen to AnimateBrainrot event
+    local events = ReplicatedStorage:FindFirstChild("Events")
+    if events then
+        local animateEvent = events:FindFirstChild("AnimateBrainrot")
+        if animateEvent then
+            local animConnection = animateEvent.OnClientEvent:Connect(function(brainrot)
+                if not autoClaimEnabled then return end
+                
+                -- When a brainrot animates, try to claim it
+                wait(0.1)
+                claimAllPlots()
+            end)
+            table.insert(claimConnections, animConnection)
+            print("✅ Listening to AnimateBrainrot event")
+        end
+    end
+    
+    -- Method 2: Continuous loop as backup
+    local loopRunning = true
+    table.insert(claimConnections, {
+        Disconnect = function()
+            loopRunning = false
+        end
+    })
+    
+    coroutine.wrap(function()
+        while loopRunning and autoClaimEnabled do
+            claimAllPlots()
+            wait(0.5) -- Check every 0.5 seconds
+        end
+    end)()
+    
+    print("✅ Auto Claim Cash is now ACTIVE!")
+end
+
+-- Function to upgrade all brainrots in player's plot
+local function upgradeAllBrainrots()
+    if not autoUpgradeEnabled then return end
+    
+    local playerPlot = LocalPlayer:GetAttribute("Plot")
+    if not playerPlot then 
+        warn("⚠️ Player doesn't have a plot assigned!")
+        return 
+    end
+    
+    local gameFolder = game.Workspace:FindFirstChild("GameFolder")
+    if not gameFolder then return end
+    
+    local plots = gameFolder:FindFirstChild("Plots")
+    if not plots then return end
+    
+    local plot = plots:FindFirstChild(tostring(playerPlot))
+    if not plot then return end
+    
+    local places = plot:FindFirstChild("Places")
+    if not places then return end
+    
+    local events = ReplicatedStorage:FindFirstChild("Events")
+    if not events then return end
+    
+    local upgradeEvent = events:FindFirstChild("Upgrade")
+    if not upgradeEvent then return end
+    
+    local upgradeCount = 0
+    
+    -- Upgrade each place/brainrot
+    for _, place in pairs(places:GetChildren()) do
+        if place:IsA("Model") then
+            local placeNumber = tonumber(place.Name)
+            if placeNumber then
+                -- Try to upgrade this brainrot
+                local success, result = pcall(function()
+                    return upgradeEvent:InvokeServer(placeNumber)
+                end)
+                
+                if success and result then
+                    upgradeCount = upgradeCount + 1
+                    print("⬆️ Upgraded brainrot at place " .. placeNumber)
+                    wait(0.1) -- Small delay between upgrades
+                end
+            end
+        end
+    end
+    
+    if upgradeCount > 0 then
+        print("⬆️ Upgraded " .. upgradeCount .. " brainrots!")
+    end
+    
+    return upgradeCount
+end
+
+-- Function to setup auto upgrade with continuous loop
+local function setupAutoUpgrade()
+    -- Disconnect all existing connections
+    for _, connection in pairs(upgradeConnections) do
+        if connection and connection.Disconnect then
+            connection:Disconnect()
+        end
+    end
+    upgradeConnections = {}
+    
+    if not autoUpgradeEnabled then
+        print("⏹️ Auto Upgrade disabled")
+        return
+    end
+    
+    print("⬆️ ========== AUTO UPGRADE STARTED ========== ⬆️")
+    print("📍 Upgrading all brainrots in your plot")
+    print("🔄 Continuously checking for upgrade opportunities...")
+    
+    -- Method 1: Listen to AnimateBrainrot event (indicates production/potential upgrade time)
+    local events = ReplicatedStorage:FindFirstChild("Events")
+    if events then
+        local animateEvent = events:FindFirstChild("AnimateBrainrot")
+        if animateEvent then
+            local animConnection = animateEvent.OnClientEvent:Connect(function(brainrot)
+                if not autoUpgradeEnabled then return end
+                
+                -- When a brainrot animates, try to upgrade all
+                wait(0.2)
+                upgradeAllBrainrots()
+            end)
+            table.insert(upgradeConnections, animConnection)
+            print("✅ Listening to AnimateBrainrot event for upgrades")
+        end
+    end
+    
+    -- Method 2: Continuous loop as backup
+    local loopRunning = true
+    table.insert(upgradeConnections, {
+        Disconnect = function()
+            loopRunning = false
+        end
+    })
+    
+    coroutine.wrap(function()
+        while loopRunning and autoUpgradeEnabled do
+            upgradeAllBrainrots()
+            wait(2) -- Check every 2 seconds (upgrades are less frequent than claims)
+        end
+    end)()
+    
+    print("✅ Auto Upgrade is now ACTIVE!")
+end
+
 -- Character respawn handler
 local function onCharacterAdded(character)
     local humanoid = character:WaitForChild("Humanoid")
@@ -399,10 +660,20 @@ local function onCharacterAdded(character)
     end
     
     setupUnlimitedJumping()
+    
+    -- Restart auto claim if it was enabled
+    if autoClaimEnabled then
+        setupAutoClaimCash()
+    end
+    
+    -- Restart auto upgrade if it was enabled
+    if autoUpgradeEnabled then
+        setupAutoUpgrade()
+    end
 end
 
 -- Initialize
-local ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, OpenButton, MainFrame = createUI()
+local ScreenGui, ToggleButton, CloseButton, TeleportButton, CelestialButton, ClaimButton, UpgradeButton, OpenButton, MainFrame = createUI()
 
 -- Toggle button click handler
 ToggleButton.MouseButton1Click:Connect(function()
@@ -440,6 +711,36 @@ CelestialButton.MouseButton1Click:Connect(function()
             celestialConnection = nil
         end
         print("⏹️ Auto Celestial has been disabled")
+    end
+end)
+
+-- Auto Claim Cash button click handler
+ClaimButton.MouseButton1Click:Connect(function()
+    autoClaimEnabled = not autoClaimEnabled
+    
+    if autoClaimEnabled then
+        ClaimButton.Text = "Auto Claim: ON"
+        ClaimButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        setupAutoClaimCash()
+    else
+        ClaimButton.Text = "Auto Claim: OFF"
+        ClaimButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        setupAutoClaimCash() -- This will disconnect all connections
+    end
+end)
+
+-- Auto Upgrade button click handler
+UpgradeButton.MouseButton1Click:Connect(function()
+    autoUpgradeEnabled = not autoUpgradeEnabled
+    
+    if autoUpgradeEnabled then
+        UpgradeButton.Text = "Auto Upgrade: ON"
+        UpgradeButton.BackgroundColor3 = Color3.fromRGB(138, 43, 226) -- Purple color
+        setupAutoUpgrade()
+    else
+        UpgradeButton.Text = "Auto Upgrade: OFF"
+        UpgradeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        setupAutoUpgrade() -- This will disconnect all connections
     end
 end)
 
