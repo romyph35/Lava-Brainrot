@@ -406,12 +406,6 @@ end
 
 -- Function to claim cash from a single plot
 local function claimPlotCash(plotNumber)
-    local character = LocalPlayer.Character
-    if not character then return false end
-    
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return false end
-    
     -- Navigate to Workspace > GameFolder > Plots > [PlotNumber]
     local gameFolder = game.Workspace:FindFirstChild("GameFolder")
     if not gameFolder then return false end
@@ -422,27 +416,55 @@ local function claimPlotCash(plotNumber)
     local plot = plots:FindFirstChild(tostring(plotNumber))
     if not plot then return false end
     
-    -- Find the Claim part inside Places > 1
-    local places = plot:FindFirstChild("Places")
-    if not places then return false end
+    -- Find the Brainrots folder in the plot
+    local brainrots = plot:FindFirstChild("Brainrots")
+    if not brainrots then return false end
     
-    local place1 = places:FindFirstChild("1")
-    if not place1 then return false end
+    -- Get all brainrot children in the plot
+    local brainrotChildren = brainrots:GetChildren()
+    if #brainrotChildren == 0 then return false end
     
-    local claimPart = place1:FindFirstChild("Claim")
-    if not claimPart then return false end
+    -- Get ReplicatedStorage events
+    local events = ReplicatedStorage:FindFirstChild("Events")
+    if not events then 
+        warn("❌ Events folder not found in ReplicatedStorage!")
+        return false 
+    end
     
-    -- Touch the Claim part by teleporting to it
-    local originalPosition = humanoidRootPart.CFrame
-    humanoidRootPart.CFrame = claimPart.CFrame
+    local animateBrainrotEvent = events:FindFirstChild("AnimateBrainrot")
+    local playSoundEvent = events:FindFirstChild("PlaySound")
     
-    -- Wait a moment for the touch to register
-    wait(0.05)
+    if not animateBrainrotEvent then
+        warn("❌ AnimateBrainrot event not found!")
+        return false
+    end
     
-    -- Teleport back to original position
-    humanoidRootPart.CFrame = originalPosition
+    if not playSoundEvent then
+        warn("❌ PlaySound event not found!")
+        return false
+    end
     
-    return true
+    -- Claim cash from all brainrots in this plot
+    local claimedCount = 0
+    for _, brainrot in pairs(brainrotChildren) do
+        -- Fire the AnimateBrainrot event
+        firesignal(animateBrainrotEvent.OnClientEvent, brainrot)
+        claimedCount = claimedCount + 1
+    end
+    
+    -- Play the collect sound once per plot
+    if claimedCount > 0 then
+        local soundService = game:GetService("SoundService")
+        local sfx = soundService:FindFirstChild("SFX")
+        if sfx then
+            local collectSound = sfx:FindFirstChild("Collect")
+            if collectSound then
+                firesignal(playSoundEvent.OnClientEvent, collectSound)
+            end
+        end
+    end
+    
+    return claimedCount > 0
 end
 
 -- Function to setup auto claim cash
@@ -465,6 +487,8 @@ local function setupAutoClaimCash()
     -- Spawn a coroutine to continuously claim cash
     coroutine.wrap(function()
         while claimLoop and autoClaimEnabled do
+            local totalClaimed = 0
+            
             for plotNumber = 1, TOTAL_PLOTS do
                 if not claimLoop or not autoClaimEnabled then
                     break
@@ -472,15 +496,18 @@ local function setupAutoClaimCash()
                 
                 local success = claimPlotCash(plotNumber)
                 if success then
-                    -- Optional: print success message (can be commented out to reduce spam)
-                    -- print("✅ Claimed cash from Plot " .. plotNumber)
+                    totalClaimed = totalClaimed + 1
                 end
                 
                 wait(CLAIM_INTERVAL)
             end
             
+            if totalClaimed > 0 then
+                print("💰 Claimed cash from " .. totalClaimed .. " plots!")
+            end
+            
             -- Small delay before starting the next round
-            wait(0.1)
+            wait(0.5)
         end
         
         print("💰 ========== AUTO CLAIM CASH STOPPED ========== 💰")
@@ -587,20 +614,3 @@ end
 
 LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 setupUnlimitedJumping()
-
-print("🚀 ========================================")
-print("🚀 Unlimited Jump Script Loaded!")
-print("🚀 ========================================")
-print("📍 Monitoring: Workspace > GameFolder > Brainrots > Celestial")
-print("📍 Monitoring: Workspace > GameFolder > Plots (1-30)")
-print("🔔 Listening for: 'A Celestial has spawned!' notification")
-print("⚡ Auto Grab Sequence:")
-print("   1️⃣ Detect notification")
-print("   2️⃣ Teleport to brainrot")
-print("   3️⃣ Trigger ProximityPrompt")
-print("   4️⃣ Teleport to spawn")
-print("💰 Auto Claim Cash:")
-print("   ✅ Loops through all 30 plots")
-print("   ✅ Touches Claim part in each plot")
-print("   ✅ Automatically collects cash")
-print("🚀 ========================================")
