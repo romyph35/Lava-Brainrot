@@ -3,6 +3,57 @@ local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- Anti-Detection System
+local function protectScript()
+	-- Hook and protect against common anti-cheat detections
+	local mt = getrawmetatable(game)
+	local oldNamecall = mt.__namecall
+	local oldIndex = mt.__index
+	
+	setreadonly(mt, false)
+	
+	-- Protect against remote detection
+	mt.__namecall = newcclosure(function(self, ...)
+		local method = getnamecallmethod()
+		local args = {...}
+		
+		-- Block suspicious kick attempts
+		if method == "Kick" then
+			return
+		end
+		
+		-- Hide our remote calls
+		if method == "FireServer" or method == "InvokeServer" then
+			-- Let legitimate calls through
+			return oldNamecall(self, ...)
+		end
+		
+		return oldNamecall(self, ...)
+	end)
+	
+	-- Protect against property checks
+	mt.__index = newcclosure(function(self, key)
+		-- Hide suspicious properties
+		if key == "Parent" and tostring(self) == "ModernUI" then
+			return game:GetService("CoreGui")
+		end
+		
+		return oldIndex(self, key)
+	end)
+	
+	setreadonly(mt, true)
+	
+	-- Randomize timing to avoid pattern detection
+	local random = Random.new()
+	local function randomWait(min, max)
+		wait(random:NextNumber(min or 0.1, max or 0.3))
+	end
+	
+	return randomWait
+end
+
+local randomWait = protectScript()
+
 -- Configuration
 local UNLIMITED_JUMP_POWER = 50
 local ORIGINAL_JUMP_POWER = 50
@@ -448,13 +499,11 @@ end
 local function teleportToSpawn()
 	local character = LocalPlayer.Character
 	if not character then
-		warn("Character not found!")
 		return
 	end
 
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then
-		warn("HumanoidRootPart not found!")
 		return
 	end
 
@@ -462,9 +511,6 @@ local function teleportToSpawn()
 
 	if spawnLocation then
 		humanoidRootPart.CFrame = spawnLocation.CFrame + Vector3.new(0, 3, 0)
-		print("✅ Teleported to spawn!")
-	else
-		warn("❌ SpawnLocation not found in Workspace!")
 	end
 end
 
@@ -472,91 +518,66 @@ end
 local function findCelestialPrompt()
 	local gameFolder = game.Workspace:FindFirstChild("GameFolder")
 	if not gameFolder then
-		warn("❌ GameFolder not found!")
 		return nil, nil
 	end
 
 	local brainrots = gameFolder:FindFirstChild("Brainrots")
 	if not brainrots then
-		warn("❌ Brainrots folder not found!")
 		return nil, nil
 	end
 
 	local celestialFolder = brainrots:FindFirstChild("Celestial")
 	if not celestialFolder then
-		warn("❌ Celestial folder not found!")
 		return nil, nil
 	end
 
 	for _, descendant in ipairs(celestialFolder:GetDescendants()) do
 		if descendant:IsA("ProximityPrompt") then
 			local parentPart = descendant.Parent
-			print("✅ Found ProximityPrompt on: " .. parentPart.Name)
 			return descendant, parentPart
 		end
 	end
 
-	warn("❌ ProximityPrompt not found in Celestial folder!")
 	return nil, nil
 end
 
 -- Function to grab celestial (automatic sequence)
 local function grabCelestial()
-	print("🌟 ========== AUTO CELESTIAL GRAB STARTED ========== 🌟")
-
 	local character = LocalPlayer.Character
 	if not character then 
-		warn("❌ Character not found!")
 		return 
 	end
 
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then 
-		warn("❌ HumanoidRootPart not found!")
 		return 
 	end
 
-	print("🔍 Step 1: Searching for celestial ProximityPrompt...")
 	local proximityPrompt, promptPart = findCelestialPrompt()
 
 	if not proximityPrompt or not promptPart then
-		warn("❌ Could not find celestial ProximityPrompt!")
 		return
 	end
 
-	print("✅ ProximityPrompt found successfully!")
-
-	print("🚀 Step 2: Teleporting to celestial brainrot...")
 	humanoidRootPart.CFrame = promptPart.CFrame + Vector3.new(0, 3, 0)
-	print("✅ Teleported to celestial!")
 
-	wait(0.5)
+	wait(0.1)
 
-	print("👋 Step 3: Grabbing celestial via ProximityPrompt...")
 	if proximityPrompt.Enabled then
 		fireproximityprompt(proximityPrompt)
-		print("✅ ProximityPrompt triggered!")
 
-		wait(0.2)
+		wait(0.1)
 		local events = ReplicatedStorage:FindFirstChild("Events")
 		if events then
 			local tutorialEvent = events:FindFirstChild("Tutorial")
 			if tutorialEvent then
 				tutorialEvent:FireServer("Grab")
-				print("✅ Tutorial 'Grab' event fired!")
 			end
 		end
-	else
-		warn("⚠️ ProximityPrompt is disabled!")
 	end
 
-	print("⏳ Step 4: Waiting before returning to spawn...")
-	wait(1.5)
-
-	print("🏠 Step 5: Teleporting back to spawn...")
+	wait(0.2)
 	teleportToSpawn()
-
-	print("🌟 ========== AUTO CELESTIAL GRAB COMPLETE ========== 🌟")
 end
 
 -- Function to setup auto celestial
@@ -567,44 +588,33 @@ local function setupAutoCelestial()
 	end
 
 	if not autoCelestialEnabled then
-		print("⏹️ Auto Celestial disabled")
 		return
 	end
 
 	local events = ReplicatedStorage:FindFirstChild("Events")
 	if not events then
-		warn("❌ Events folder not found in ReplicatedStorage!")
 		return
 	end
 
 	local notificationEvent = events:FindFirstChild("Notification")
 	if not notificationEvent then
-		warn("❌ Notification event not found!")
 		return
 	end
 
 	celestialConnection = notificationEvent.OnClientEvent:Connect(function(message, data)
 		if autoCelestialEnabled and message == "A Celestial has spawned!" then
-			print("🔔 CELESTIAL NOTIFICATION RECEIVED!")
-			
-			-- Pause auto claim
 			if autoClaimEnabled then
 				claimPaused = true
-				print("⏸️ Auto Claim Cash PAUSED for celestial")
 			end
 			
 			wait(1)
 			grabCelestial()
 			
-			-- Resume auto claim after celestial grab
 			if autoClaimEnabled then
 				claimPaused = false
-				print("▶️ Auto Claim Cash RESUMED")
 			end
 		end
 	end)
-
-	print("✅ Auto Celestial listener is ACTIVE and waiting for notification!")
 end
 
 -- Function to claim cash from player's plot by teleporting to claim parts
@@ -621,7 +631,6 @@ local function claimAllPlots()
 
 	local playerPlot = LocalPlayer:GetAttribute("Plot")
 	if not playerPlot then 
-		warn("⚠️ Player doesn't have a plot assigned!")
 		return 
 	end
 
@@ -641,7 +650,6 @@ local function claimAllPlots()
 
 	for slotNum = 1, 30 do
 		if not autoClaimEnabled or claimPaused then 
-			print("⏸️ Auto Claim paused")
 			break 
 		end
 
@@ -653,37 +661,41 @@ local function claimAllPlots()
 				-- Save original claim part properties
 				local originalCFrame = claimPart.CFrame
 				local originalAnchored = claimPart.Anchored
+				local originalCanCollide = claimPart.CanCollide
 				
-				-- Make sure claim part stays in place
+				-- Anchor the claim part BEFORE teleporting to prevent it from moving
 				claimPart.Anchored = true
+				claimPart.CanCollide = false
 				
-				-- Teleport player above the claim part (not directly on it)
-				local targetPosition = claimPart.Position + Vector3.new(0, 5, 0)
+				wait(0.1)
+				
+				-- Teleport player to a position near the claim part
+				local targetPosition = originalCFrame.Position + Vector3.new(0, 3, 0)
 				humanoidRootPart.CFrame = CFrame.new(targetPosition)
 				
-				print("💰 Teleported to claim slot " .. slotNum)
+				-- Random wait to avoid pattern detection
+				local random = Random.new()
+				wait(random:NextNumber(0.1, 0.2))
 				
-				wait(0.3) -- Wait for teleport to register
-				
-				-- Touch the claim part
-				firetouchinterest(humanoidRootPart, claimPart, 0)
-				wait(0.05)
-				firetouchinterest(humanoidRootPart, claimPart, 1)
+				-- Touch the claim part multiple times to ensure it registers
+				for i = 1, 3 do
+					firetouchinterest(humanoidRootPart, claimPart, 0)
+					wait(0.01)
+					firetouchinterest(humanoidRootPart, claimPart, 1)
+					wait(0.01)
+				end
 
 				claimedCount = claimedCount + 1
 				
-				-- Restore claim part to original state
+				-- Restore claim part to original state immediately
 				claimPart.CFrame = originalCFrame
 				claimPart.Anchored = originalAnchored
+				claimPart.CanCollide = originalCanCollide
 				
-				-- Wait 20 seconds before next claim
-				wait(20)
+				-- Random wait between 18-22 seconds to avoid detection
+				wait(random:NextNumber(18, 22))
 			end
 		end
-	end
-
-	if claimedCount > 0 then
-		print("💰 Claimed cash from " .. claimedCount .. " brainrot slots!")
 	end
 
 	return claimedCount
@@ -699,13 +711,8 @@ local function setupAutoClaimCash()
 	claimConnections = {}
 
 	if not autoClaimEnabled then
-		print("⏹️ Auto Claim Cash disabled")
 		return
 	end
-
-	print("💰 ========== AUTO CLAIM CASH STARTED ========== 💰")
-	print("📍 Teleporting to each claim part with 20 second delay")
-	print("🔄 Will pause when celestial spawns...")
 
 	local loopRunning = true
 	table.insert(claimConnections, {
@@ -719,12 +726,10 @@ local function setupAutoClaimCash()
 			if not claimPaused then
 				claimAllPlots()
 			else
-				wait(1) -- Check every second if pause is lifted
+				wait(1)
 			end
 		end
 	end)()
-
-	print("✅ Auto Claim Cash is now ACTIVE!")
 end
 
 -- Function to upgrade all brainrots in player's plot
@@ -733,7 +738,6 @@ local function upgradeAllBrainrots()
 
 	local playerPlot = LocalPlayer:GetAttribute("Plot")
 	if not playerPlot then 
-		warn("⚠️ Player doesn't have a plot assigned!")
 		return 
 	end
 
@@ -767,15 +771,10 @@ local function upgradeAllBrainrots()
 
 				if success and result then
 					upgradeCount = upgradeCount + 1
-					print("⬆️ Upgraded brainrot at place " .. placeNumber)
 					wait(0.1)
 				end
 			end
 		end
-	end
-
-	if upgradeCount > 0 then
-		print("⬆️ Upgraded " .. upgradeCount .. " brainrots!")
 	end
 
 	return upgradeCount
@@ -791,13 +790,8 @@ local function setupAutoUpgrade()
 	upgradeConnections = {}
 
 	if not autoUpgradeEnabled then
-		print("⏹️ Auto Upgrade disabled")
 		return
 	end
-
-	print("⬆️ ========== AUTO UPGRADE STARTED ========== ⬆️")
-	print("📍 Upgrading all brainrots in your plot")
-	print("🔄 Continuously checking for upgrade opportunities...")
 
 	local events = ReplicatedStorage:FindFirstChild("Events")
 	if events then
@@ -809,7 +803,6 @@ local function setupAutoUpgrade()
 				upgradeAllBrainrots()
 			end)
 			table.insert(upgradeConnections, animConnection)
-			print("✅ Listening to AnimateBrainrot event for upgrades")
 		end
 	end
 
@@ -826,8 +819,6 @@ local function setupAutoUpgrade()
 			wait(2)
 		end
 	end)()
-
-	print("✅ Auto Upgrade is now ACTIVE!")
 end
 
 -- Character respawn handler
@@ -856,14 +847,10 @@ end
 local function setupAntiAFK()
 	local VirtualUser = game:GetService("VirtualUser")
 	
-	-- Prevent idle kick
 	LocalPlayer.Idled:Connect(function()
 		VirtualUser:CaptureController()
 		VirtualUser:ClickButton2(Vector2.new())
-		print("🔄 Anti-AFK: Prevented idle kick")
 	end)
-	
-	print("✅ Anti-AFK is now ACTIVE!")
 end
 
 -- Initialize Anti-AFK
@@ -877,12 +864,6 @@ JumpToggleButton.MouseButton1Click:Connect(function()
 	unlimitedJumpEnabled = not unlimitedJumpEnabled
 	animateToggle(JumpToggleButton, JumpToggleCircle, unlimitedJumpEnabled, Color3.fromRGB(100, 200, 255))
 	setUnlimitedJump(unlimitedJumpEnabled)
-
-	if unlimitedJumpEnabled then
-		print("✅ Unlimited Jump: ON")
-	else
-		print("⏹️ Unlimited Jump: OFF")
-	end
 end)
 
 -- Teleport button handler
@@ -895,12 +876,6 @@ CelestialToggleButton.MouseButton1Click:Connect(function()
 	autoCelestialEnabled = not autoCelestialEnabled
 	animateToggle(CelestialToggleButton, CelestialToggleCircle, autoCelestialEnabled, Color3.fromRGB(255, 215, 0))
 	setupAutoCelestial()
-
-	if autoCelestialEnabled then
-		print("✅ Auto Celestial: ON")
-	else
-		print("⏹️ Auto Celestial: OFF")
-	end
 end)
 
 -- Claim toggle handler
@@ -908,12 +883,6 @@ ClaimToggleButton.MouseButton1Click:Connect(function()
 	autoClaimEnabled = not autoClaimEnabled
 	animateToggle(ClaimToggleButton, ClaimToggleCircle, autoClaimEnabled, Color3.fromRGB(50, 255, 100))
 	setupAutoClaimCash()
-
-	if autoClaimEnabled then
-		print("✅ Auto Claim Cash: ON")
-	else
-		print("⏹️ Auto Claim Cash: OFF")
-	end
 end)
 
 -- Upgrade toggle handler
@@ -921,12 +890,6 @@ UpgradeToggleButton.MouseButton1Click:Connect(function()
 	autoUpgradeEnabled = not autoUpgradeEnabled
 	animateToggle(UpgradeToggleButton, UpgradeToggleCircle, autoUpgradeEnabled, Color3.fromRGB(147, 112, 219))
 	setupAutoUpgrade()
-
-	if autoUpgradeEnabled then
-		print("✅ Auto Upgrade: ON")
-	else
-		print("⏹️ Auto Upgrade: OFF")
-	end
 end)
 
 -- Close/Open button handlers (simple, no animations)
