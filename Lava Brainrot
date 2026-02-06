@@ -544,7 +544,7 @@ local function grabCelestial()
 
 	humanoidRootPart.CFrame = promptPart.CFrame + Vector3.new(0, 3, 0)
 
-	wait(0.5)
+	wait(0.1)
 
 	if proximityPrompt.Enabled then
 		fireproximityprompt(proximityPrompt)
@@ -559,7 +559,7 @@ local function grabCelestial()
 		end
 	end
 
-	wait(1.5)
+	wait(0.5)
 
 	teleportToSpawn()
 end
@@ -591,7 +591,7 @@ local function setupAutoCelestial()
 				claimPaused = true
 			end
 			
-			wait(1)
+			wait(0.1)
 			grabCelestial()
 			
 			if autoClaimEnabled then
