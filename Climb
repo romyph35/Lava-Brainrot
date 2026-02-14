@@ -1,0 +1,247 @@
+-- Base 6 & Spawn Teleport Script with UI
+-- Created for teleporting to Base 6 and Spawn locations
+
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Base6TeleportUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Try to parent to CoreGui, fallback to PlayerGui
+local success = pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not success then
+    screenGui.Parent = playerGui
+end
+
+-- Create Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 250, 0, 180)
+mainFrame.Position = UDim2.new(0.5, -125, 0.5, -90)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Add corner radius
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = mainFrame
+
+-- Create Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 35)
+titleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.Parent = titleBar
+
+-- Create Title Text
+local titleText = Instance.new("TextLabel")
+titleText.Name = "TitleText"
+titleText.Size = UDim2.new(1, -40, 1, 0)
+titleText.Position = UDim2.new(0, 10, 0, 0)
+titleText.BackgroundTransparency = 1
+titleText.Text = "Base 6 Teleport"
+titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleText.TextSize = 16
+titleText.Font = Enum.Font.GothamBold
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.Parent = titleBar
+
+-- Create Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -33, 0, 2.5)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 14
+closeButton.Font = Enum.Font.GothamBold
+closeButton.BorderSizePixel = 0
+closeButton.Parent = titleBar
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 6)
+closeCorner.Parent = closeButton
+
+-- Create Base 6 Button
+local base6Button = Instance.new("TextButton")
+base6Button.Name = "Base6Button"
+base6Button.Size = UDim2.new(0, 220, 0, 50)
+base6Button.Position = UDim2.new(0, 15, 0, 50)
+base6Button.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+base6Button.Text = "Teleport to Secret"
+base6Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+base6Button.TextSize = 16
+base6Button.Font = Enum.Font.GothamBold
+base6Button.BorderSizePixel = 0
+base6Button.Parent = mainFrame
+
+local base6Corner = Instance.new("UICorner")
+base6Corner.CornerRadius = UDim.new(0, 8)
+base6Corner.Parent = base6Button
+
+-- Create Spawn Button
+local spawnButton = Instance.new("TextButton")
+spawnButton.Name = "SpawnButton"
+spawnButton.Size = UDim2.new(0, 220, 0, 50)
+spawnButton.Position = UDim2.new(0, 15, 0, 110)
+spawnButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+spawnButton.Text = "🏠 Teleport to Spawn"
+spawnButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+spawnButton.TextSize = 16
+spawnButton.Font = Enum.Font.GothamBold
+spawnButton.BorderSizePixel = 0
+spawnButton.Parent = mainFrame
+
+local spawnCorner = Instance.new("UICorner")
+spawnCorner.CornerRadius = UDim.new(0, 8)
+spawnCorner.Parent = spawnButton
+
+-- Make UI Draggable
+local dragging = false
+local dragInput, mousePos, framePos
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        mousePos = input.Position
+        framePos = mainFrame.Position
+    end
+end)
+
+titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        mainFrame.Position = UDim2.new(
+            framePos.X.Scale,
+            framePos.X.Offset + delta.X,
+            framePos.Y.Scale,
+            framePos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+titleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- Teleport Functions
+local function teleportToBase6()
+    local character = player.Character
+    if not character then 
+        warn("Character not found!")
+        return 
+    end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then 
+        warn("HumanoidRootPart not found!")
+        return 
+    end
+    
+    -- Use the exact CFrame position for Base 6
+    -- Note: The CFrame you provided has an unusual matrix, using the position values
+    local base6CFrame = CFrame.new(-385.5, 26326, -328.999878, 0, 0, -1, 0, 1, 0, 1, 0, 0)
+    
+    -- Teleport to Base 6
+    humanoidRootPart.CFrame = base6CFrame
+    print("✅ Teleported to Base 6!")
+end
+
+local function teleportToSpawn()
+    local character = player.Character
+    if not character then 
+        warn("Character not found!")
+        return 
+    end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then 
+        warn("HumanoidRootPart not found!")
+        return 
+    end
+    
+    -- Use the exact CFrame position for Spawn
+    local spawnCFrame = CFrame.new(-481, 1326, -329, -1, 0, 0, 0, 1, 0, 0, 0, -1)
+    
+    -- Teleport to Spawn
+    humanoidRootPart.CFrame = spawnCFrame
+    print("✅ Teleported to Spawn!")
+end
+
+-- Button Click Effects and Functions
+local function addButtonEffect(button, callback)
+    button.MouseButton1Click:Connect(function()
+        -- Visual feedback
+        local originalSize = button.Size
+        button.Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset - 5, originalSize.Y.Scale, originalSize.Y.Offset - 5)
+        task.wait(0.1)
+        button.Size = originalSize
+        
+        -- Execute callback
+        pcall(callback)
+    end)
+    
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundColor3 = button.BackgroundColor3:Lerp(Color3.fromRGB(255, 255, 255), 0.2)
+        }):Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        if button == base6Button then
+            TweenService:Create(button, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+            }):Play()
+        elseif button == spawnButton then
+            TweenService:Create(button, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+            }):Play()
+        end
+    end)
+end
+
+-- Connect buttons
+addButtonEffect(base6Button, teleportToBase6)
+addButtonEffect(spawnButton, teleportToSpawn)
+
+-- Close button functionality
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+    print("Base 6 Teleport UI closed")
+end)
+
+closeButton.MouseEnter:Connect(function()
+    TweenService:Create(closeButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(220, 70, 70)
+    }):Play()
+end)
+
+closeButton.MouseLeave:Connect(function()
+    TweenService:Create(closeButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    }):Play()
+end)
